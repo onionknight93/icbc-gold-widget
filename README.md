@@ -31,7 +31,7 @@ ICBC 的 `mybank.icbc.com.cn` 不支持 RFC 5746 安全重协商，iOS 的 TLS �
 脚本读取：
 
 ```
-GET https://api.github.com/repos/xinxie/icbc-gold-widget/contents/gold.json?ref=data
+GET https://api.github.com/repos/onionknight93/icbc-gold-widget/contents/gold.json?ref=data
 Accept: application/vnd.github.raw
 Authorization: Bearer $GH_TOKEN
 ```

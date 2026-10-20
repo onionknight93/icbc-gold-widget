@@ -5,7 +5,7 @@ author: "hermes"
 scriptings:
   - generic:
       name: "icbc-gold"
-      script_url: "https://raw.githubusercontent.com/xinxie/icbc-gold-widget/main/icbc-gold.js"
+      script_url: "https://raw.githubusercontent.com/onionknight93/icbc-gold-widget/main/icbc-gold.js"
       timeout: 20
 
 widgets:

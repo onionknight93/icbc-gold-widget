@@ -5,7 +5,7 @@
 // The repo is public, so the widget reads a plain raw URL: no token, no
 // GitHub API rate limit.
 
-const REPO = 'xinxie/icbc-gold-widget';
+const REPO = 'onionknight93/icbc-gold-widget';
 const DATA = `https://raw.githubusercontent.com/${REPO}/data/gold.json`;
 const SOURCE_PAGE =
   'https://mybank.icbc.com.cn/icbc/newperbank/perbank3/gold/goldaccrual_query_out.jsp';

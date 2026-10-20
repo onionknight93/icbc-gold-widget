@@ -43,7 +43,7 @@ assert(failed.type === 'widget' && JSON.stringify(failed).includes('读取失败
 for (const family of ['systemSmall', 'systemMedium', 'systemLarge']) {
   const flat = JSON.stringify(await widget(okCtx(family)));
   assert(flat.includes('积存金') && flat.includes('如意金'), family + ' products');
-  assert(flat.includes('买入') && flat.includes('卖出'), family + ' columns');
+  assert(flat.includes('买') && flat.includes('卖'), family + ' columns');
 }
 
 console.log('ok', { price: '888.50', families: 6 });

@@ -1,27 +1,23 @@
 /******************************
 脚本名称: ICBCGold
-Version : v1.1.0
+Version : v1.2.0
 平台: Egern
-功能: 工行积存金 / 如意金积存价格
-数据: VPS 每 5 分钟抓一次，落到 onionknight93/icbc-gold-widget 的 data 分支
+功能: 工行积存金 / 如意金积存
+数据: VPS 每 5 分钟抓一次 → onionknight93/icbc-gold-widget/data/gold.json
 说明: ICBC 不支持 RFC 5746，iOS 无法直连，所以读快照
+布局参考: Revicess/Egern Gold_XAU
 **********************************/
 const REPO = 'onionknight93/icbc-gold-widget';
 const DATA = `https://raw.githubusercontent.com/${REPO}/data/gold.json`;
 const PAGE =
   'https://mybank.icbc.com.cn/icbc/newperbank/perbank3/gold/goldaccrual_query_out.jsp';
 
-const C = {
-  bg: { light: '#F2F2F7', dark: '#000000' },
-  card: { light: '#FFFFFF', dark: '#1C1C1E' },
-  text: { light: '#111114', dark: '#F5F5F7' },
-  sub: { light: '#8E8E93', dark: '#98989D' },
-  weak: { light: '#AEAEB2', dark: '#636366' },
-  chip: { light: '#F7F7F9', dark: '#2C2C2E' },
-  red: { light: '#FF3B30', dark: '#FF6961' },   // 涨
-  green: { light: '#34C759', dark: '#5FFFB0' }, // 跌
-  flat: { light: '#8E8E93', dark: '#98989D' },
-};
+const RED = '#FF3B30';
+const GREEN = '#34C759';
+const FLAT = '#FF9F0A';
+const GOLD = '#FFD166';
+const WHITE = '#FFFFFF';
+const DIM = '#999999';
 
 export default async function (ctx) {
   const env = ctx.env || {};
@@ -29,159 +25,154 @@ export default async function (ctx) {
 
   let d;
   try {
-    const resp = await ctx.http.get(url, { timeout: 10000 });
+    const resp = await ctx.http.get(url, { timeout: 10000, headers: { Accept: '*/*' } });
     d = await resp.json();
   } catch (e) {
-    return errorWidget(String((e && e.message) || e).slice(0, 40));
+    return {
+      type: 'widget', padding: 10, backgroundColor: '#0d0d0d',
+      children: [{ type: 'text', text: `读取失败 ${String((e && e.message) || e).slice(0, 24)}`, font: { size: 12, weight: 'bold' }, textColor: RED, maxLines: 2 }],
+    };
   }
 
   const g = d.gold || {};
   const price = Number(g.active || 0);
   const trend = g.trend || 'flat';
-  const color = trend === 'up' ? C.red : trend === 'down' ? C.green : C.flat;
+  const color = trend === 'up' ? RED : trend === 'down' ? GREEN : FLAT;
   const arrow = trend === 'up' ? '↑' : trend === 'down' ? '↓' : '→';
-  const label = trend === 'up' ? '涨' : trend === 'down' ? '跌' : '平';
-  const time = String(d.updated || '').slice(11, 16) || '--:--';
-  const priceText = price.toFixed(2);
+  const word = trend === 'up' ? '涨' : trend === 'down' ? '跌' : '平';
+  const iso = isoOf(d.updated);
+
+  const head = {
+    type: 'stack', direction: 'row', height: 34, alignItems: 'center',
+    children: [
+      { type: 'image', src: 'sf-symbol:diamond.circle.fill', width: 15, height: 15, color: GOLD },
+      { type: 'spacer', length: 6 },
+      { type: 'text', text: '积存金', font: { size: 15, weight: 'black' }, textColor: WHITE, maxLines: 1, minScale: 0.6 },
+      { type: 'spacer' },
+      { type: 'text', text: price.toFixed(2), font: { size: 'headline', weight: 'semibold', design: 'rounded' }, textColor: color, textAlign: 'right', maxLines: 1, minScale: 0.6 },
+      { type: 'spacer', length: 8 },
+      {
+        type: 'stack', padding: [2, 6, 2, 6], backgroundColor: color, borderRadius: 8,
+        children: [{ type: 'text', text: `${arrow} ${word}`, font: { size: 'caption1', weight: 'bold' }, textColor: WHITE, maxLines: 1, minScale: 0.6 }],
+      },
+    ],
+  };
 
   if (ctx.widgetFamily === 'accessoryInline') {
-    return { type: 'widget', backgroundColor: C.bg, refreshAfter: refreshAfter(), children: [
-      { type: 'text', text: `积存金 ${priceText} ${arrow}`, font: { size: 15, weight: 'semibold' }, textColor: color },
+    return { type: 'widget', backgroundColor: '#000000', refreshAfter: refreshAfter(), children: [
+      { type: 'text', text: `积存金 ${price.toFixed(2)} ${arrow}`, font: { size: 15, weight: 'semibold' }, textColor: color, maxLines: 1 },
     ] };
   }
   if (ctx.widgetFamily === 'accessoryCircular') {
-    return { type: 'widget', backgroundColor: C.bg, padding: 2, refreshAfter: refreshAfter(), children: [
-      { type: 'text', text: '积存金', font: { size: 10, weight: 'bold' }, textColor: C.sub },
-      { type: 'text', text: priceText, font: { size: 13, weight: 'bold', design: 'rounded' }, textColor: color },
+    return { type: 'widget', backgroundColor: '#000000', padding: 2, refreshAfter: refreshAfter(), children: [
+      { type: 'text', text: price.toFixed(2), font: { size: 14, weight: 'bold', design: 'rounded' }, textColor: color, maxLines: 1, minScale: 0.6 },
+      { type: 'text', text: arrow, font: { size: 10, weight: 'bold' }, textColor: color, maxLines: 1 },
     ] };
   }
   if (ctx.widgetFamily === 'accessoryRectangular') {
-    return { type: 'widget', backgroundColor: C.bg, refreshAfter: refreshAfter(), children: [
-      { type: 'text', text: `积存金 ${priceText} ${arrow}`, font: { size: 15, weight: 'bold', design: 'rounded' }, textColor: color },
-      { type: 'text', text: `定期 ${fmt(g.reg)} · 赎回 ${fmt(g.redeem)}`, font: { size: 11, weight: 'bold', design: 'rounded' }, textColor: C.sub },
+    return { type: 'widget', backgroundColor: '#000000', refreshAfter: refreshAfter(), children: [
+      { type: 'text', text: `积存金 ${price.toFixed(2)} ${arrow}`, font: { size: 15, weight: 'bold', design: 'rounded' }, textColor: color, maxLines: 1 },
+      { type: 'text', text: `定期 ${fmt(g.reg)} · 赎回 ${fmt(g.redeem)}`, font: { size: 11, weight: 'medium' }, textColor: '#B8B8B8', maxLines: 1 },
     ] };
   }
 
-  const head = header('积存金', label, color);
+  const low = Number(g.low || 0);
+  const high = Number(g.high || 0);
+  const pos = high > low ? Math.min(1, Math.max(0, (price - low) / (high - low))) : 0.5;
+  const meter = {
+    type: 'stack', direction: 'column', gap: 5,
+    children: [
+      {
+        type: 'stack', direction: 'row', alignItems: 'center',
+        children: [
+          { type: 'text', text: `低 ${fmt(low)}`, font: { size: 10, weight: 'medium' }, textColor: DIM, maxLines: 1, minScale: 0.7 },
+          { type: 'spacer' },
+          { type: 'text', text: '日内区间', font: { size: 10, weight: 'medium' }, textColor: DIM, maxLines: 1, minScale: 0.7 },
+          { type: 'spacer' },
+          { type: 'text', text: `高 ${fmt(high)}`, font: { size: 10, weight: 'medium' }, textColor: DIM, maxLines: 1, minScale: 0.7 },
+        ],
+      },
+      {
+        type: 'stack', direction: 'row', height: 6,
+        children: [
+          { type: 'stack', flex: Math.max(pos, 0.001), height: 6, borderRadius: 3, backgroundColor: color, children: [] },
+          { type: 'stack', flex: Math.max(1 - pos, 0.001), height: 6, borderRadius: 3, backgroundColor: '#2C2C2E', children: [] },
+        ],
+      },
+      {
+        type: 'stack', direction: 'row', alignItems: 'center',
+        children: [
+          { type: 'text', text: `定期 ${fmt(g.reg)}`, font: { size: 11, weight: 'bold', design: 'rounded' }, textColor: WHITE, maxLines: 1, minScale: 0.7 },
+          { type: 'spacer' },
+          { type: 'text', text: `赎回 ${fmt(g.redeem)}`, font: { size: 11, weight: 'bold', design: 'rounded' }, textColor: WHITE, maxLines: 1, minScale: 0.7 },
+        ],
+      },
+    ],
+  };
 
   if (ctx.widgetFamily === 'systemSmall') {
     return {
-      type: 'widget',
-      url: PAGE,
-      backgroundColor: C.bg,
-      padding: [12, 12],
-      children: [
-        {
-          type: 'stack', direction: 'column', gap: 10,
-          children: [
-            head,
-            {
-              type: 'stack', direction: 'column', gap: 6,
-              padding: [10, 12], backgroundColor: C.card, borderRadius: 16,
-              children: [
-                {
-                  type: 'stack', direction: 'row', alignItems: 'end', gap: 4,
-                  children: [
-                    { type: 'text', text: priceText, font: { size: 26, weight: 'bold', design: 'rounded' }, textColor: color, maxLines: 1 },
-                    { type: 'text', text: `元/克 ${arrow}`, font: { size: 11, weight: 'bold' }, textColor: color, maxLines: 1 },
-                  ],
-                },
-                { type: 'text', text: `定期 ${fmt(g.reg)}  赎回 ${fmt(g.redeem)}`, font: { size: 10, weight: 'bold', design: 'rounded' }, textColor: C.sub, maxLines: 1 },
-                { type: 'text', text: `高 ${fmt(g.high)}  低 ${fmt(g.low)}   ${time}`, font: { size: 9, weight: 'bold', design: 'rounded' }, textColor: C.weak, maxLines: 1 },
-              ],
-            },
-          ],
-        },
-      ],
-      refreshAfter: refreshAfter(),
+      type: 'widget', url: PAGE, padding: 8, gap: 6, refreshAfter: refreshAfter(),
+      backgroundGradient: gradient(),
+      children: [head, { type: 'stack', direction: 'column', height: 66, padding: [6, 4], children: [meter] }, footer(iso, 'ICBC')],
     };
   }
 
-  // medium / large: 积存金 + 如意金 两张卡
-  const cards = [
-    {
-      type: 'stack', direction: 'column', height: 104, padding: [10, 12],
-      backgroundColor: C.card, borderRadius: 16, flex: 1, gap: 4,
-      children: [
-        { type: 'text', text: '积存金', font: { size: 10, weight: 'bold' }, textColor: C.sub, maxLines: 1 },
-        { type: 'text', text: priceText, font: { size: 24, weight: 'bold', design: 'rounded' }, textColor: color, maxLines: 1 },
-        {
-          type: 'text',
-          text: [`定期：${fmt(g.reg)}`, `赎回：${fmt(g.redeem)}`, `区间：${fmt(g.low)}–${fmt(g.high)}`].join('\n'),
-          font: { size: 10, weight: 'bold', design: 'rounded' }, textColor: C.sub, maxLines: 3,
-        },
-      ],
-    },
-  ];
-
-  if (d.ruyi && Number(d.ruyi.buy) > 0) {
-    cards.push({
-      type: 'stack', direction: 'column', height: 104, padding: [10, 12],
-      backgroundColor: C.card, borderRadius: 16, flex: 1, gap: 4,
-      children: [
-        { type: 'text', text: '如意金积存', font: { size: 10, weight: 'bold' }, textColor: C.sub, maxLines: 1 },
-        { type: 'text', text: fmt(d.ruyi.buy), font: { size: 24, weight: 'bold', design: 'rounded' }, textColor: C.text, maxLines: 1 },
-        {
-          type: 'text',
-          text: [`买入：${fmt(d.ruyi.buy)}`, `赎回：${fmt(d.ruyi.sell)}`, `价差：${fmt(d.ruyi.buy - d.ruyi.sell)}`].join('\n'),
-          font: { size: 10, weight: 'bold', design: 'rounded' }, textColor: C.sub, maxLines: 3,
-        },
-      ],
-    });
-  }
+  const ruyi = d.ruyi && Number(d.ruyi.buy) > 0 ? d.ruyi : null;
+  const body = {
+    type: 'stack', direction: 'row', gap: 10, height: 92, alignItems: 'center',
+    children: [
+      { type: 'stack', direction: 'column', flex: 1, gap: 8, padding: [8, 10], backgroundColor: '#141414', borderRadius: 12, children: [meter] },
+      ruyi
+        ? {
+            type: 'stack', direction: 'column', flex: 1, gap: 3, padding: [8, 10], backgroundColor: '#141414', borderRadius: 12,
+            children: [
+              { type: 'text', text: '如意金积存', font: { size: 10, weight: 'medium' }, textColor: DIM, maxLines: 1, minScale: 0.7 },
+              { type: 'text', text: fmt(ruyi.buy), font: { size: 20, weight: 'semibold', design: 'rounded' }, textColor: WHITE, maxLines: 1, minScale: 0.6 },
+              { type: 'text', text: `买入 ${fmt(ruyi.buy)}\n赎回 ${fmt(ruyi.sell)}\n价差 ${fmt(ruyi.buy - ruyi.sell)}`, font: { size: 10, weight: 'medium', design: 'rounded' }, textColor: '#B8B8B8', maxLines: 3 },
+            ],
+          }
+        : { type: 'stack', flex: 1, children: [] },
+    ],
+  };
 
   return {
-    type: 'widget',
-    url: PAGE,
-    backgroundColor: C.bg,
-    padding: [12, 12],
-    children: [
-      {
-        type: 'stack', direction: 'column', gap: 10,
-        children: [
-          head,
-          { type: 'stack', direction: 'row', alignItems: 'center', gap: 10, children: cards },
-          { type: 'text', text: `更新 ${time} · 元/克`, font: { size: 9, weight: 'bold', design: 'rounded' }, textColor: C.weak, maxLines: 1 },
-        ],
-      },
-    ],
-    refreshAfter: refreshAfter(),
+    type: 'widget', url: PAGE, padding: 8, gap: 6, refreshAfter: refreshAfter(),
+    backgroundGradient: gradient(),
+    children: [head, body, footer(iso, 'ICBC · 元/克')],
   };
 }
 
-function header(name, label, color) {
+function gradient() {
   return {
-    type: 'stack', direction: 'row', alignItems: 'center',
+    type: 'linear', colors: ['#191a19', '#0d0d0d'], stops: [0.1, 1],
+    startPoint: { x: 0, y: 0 }, endPoint: { x: 1, y: 1 },
+  };
+}
+
+function footer(iso, right) {
+  return {
+    type: 'stack', direction: 'row', height: 18, alignItems: 'center',
     children: [
       {
-        type: 'stack', direction: 'row', alignItems: 'center', gap: 6,
+        type: 'stack', direction: 'row', alignItems: 'center',
         children: [
-          { type: 'stack', width: 13, height: 13, borderRadius: 3, backgroundColor: color, children: [] },
-          { type: 'text', text: name, font: { size: 11, weight: 'bold' }, textColor: C.sub, maxLines: 1 },
+          { type: 'image', src: 'sf-symbol:clock.arrow.circlepath', width: 9, height: 9, color: DIM },
+          { type: 'spacer', length: 4 },
+          { type: 'date', date: iso, format: 'relative', font: { size: 'caption2', weight: 'medium' }, textColor: DIM, maxLines: 1, minScale: 0.6 },
         ],
       },
       { type: 'spacer' },
-      {
-        type: 'stack', direction: 'row', alignItems: 'center', gap: 5,
-        padding: [4, 8], backgroundColor: C.chip, borderRadius: 8,
-        children: [
-          { type: 'stack', width: 7, height: 7, borderRadius: 3.5, backgroundColor: color, children: [] },
-          { type: 'text', text: `ICBC ${label}`, font: { size: 10, weight: 'bold', design: 'rounded' }, textColor: color, maxLines: 1 },
-        ],
-      },
+      { type: 'text', text: right, font: { size: 'caption2', weight: 'medium' }, textColor: DIM, maxLines: 1, minScale: 0.6 },
     ],
   };
 }
 
-function errorWidget(msg) {
-  return {
-    type: 'widget', backgroundColor: C.bg, padding: 16,
-    children: [
-      { type: 'text', text: '工行积存金', font: { size: 11, weight: 'bold' }, textColor: C.sub },
-      { type: 'text', text: '读取失败', font: { size: 16, weight: 'bold' }, textColor: C.red },
-      { type: 'text', text: msg, font: { size: 9, weight: 'bold', design: 'rounded' }, textColor: C.weak },
-    ],
-  };
+function isoOf(stamp) {
+  const s = String(stamp || '');
+  if (!s) return new Date().toISOString();
+  const t = Date.parse(s.includes('T') ? s : s.replace(' ', 'T') + '+08:00');
+  return Number.isFinite(t) ? new Date(t).toISOString() : new Date().toISOString();
 }
 
 function fmt(v) {

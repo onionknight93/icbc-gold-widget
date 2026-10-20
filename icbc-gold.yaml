@@ -1,0 +1,12 @@
+name: "ICBC 积存金"
+description: "工行积存金 / 如意金积存实时价格"
+author: "hermes"
+
+scriptings:
+  - generic:
+      name: "icbc-gold"
+      script_url: "https://raw.githubusercontent.com/xinxie/icbc-gold-widget/main/icbc-gold.js"
+      timeout: 20
+
+widgets:
+  - name: "icbc-gold"

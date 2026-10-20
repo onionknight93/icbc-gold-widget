@@ -2,12 +2,11 @@
 // Data comes from a pre-fetched snapshot (see fetch_gold.py) because the ICBC
 // edge host has no RFC 5746 secure renegotiation, which iOS refuses.
 //
-// The repo is private, so the read goes through the GitHub API and needs a
-// fine-grained token with Contents: Read-only on that repo, set as GH_TOKEN
-// in the widget's env. Without it the widget shows a failure card.
+// The repo is public, so the widget reads a plain raw URL: no token, no
+// GitHub API rate limit.
 
 const REPO = 'xinxie/icbc-gold-widget';
-const DATA = `https://api.github.com/repos/${REPO}/contents/gold.json?ref=data`;
+const DATA = `https://raw.githubusercontent.com/${REPO}/data/gold.json`;
 const SOURCE_PAGE =
   'https://mybank.icbc.com.cn/icbc/newperbank/perbank3/gold/goldaccrual_query_out.jsp';
 
@@ -28,13 +27,12 @@ function card(children, bg = '#1C1C1E') {
 }
 
 export default async function (ctx) {
-  const url = ctx.env.DATA_URL || DATA;
-  const headers = { Accept: 'application/vnd.github.raw' };
-  if (ctx.env.GH_TOKEN) headers.Authorization = 'Bearer ' + ctx.env.GH_TOKEN;
+  const env = ctx.env || {};
+  const url = env.DATA_URL || DATA;
 
   let d;
   try {
-    const resp = await ctx.http.get(url, { timeout: 10000, headers });
+    const resp = await ctx.http.get(url, { timeout: 10000, redirect: 'follow' });
     d = await resp.json();
   } catch (e) {
     return card([
@@ -51,7 +49,9 @@ export default async function (ctx) {
   const time = (d.updated || '').slice(11, 16) || '--:--';
 
   if (ctx.widgetFamily === 'accessoryInline') {
-    return { type: 'text', text: `积存金 ${price} ${arrow}` };
+    return card([
+      { type: 'text', text: `积存金 ${price} ${arrow}`, font: { size: 'body', weight: 'semibold' } },
+    ], '#000000');
   }
   if (ctx.widgetFamily === 'accessoryCircular') {
     return card([

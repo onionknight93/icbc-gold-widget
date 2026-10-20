@@ -33,7 +33,7 @@ for (const family of ['systemSmall', 'systemMedium', 'systemLarge', 'accessoryCi
 }
 
 const inline = await widget(okCtx('accessoryInline'));
-assert(inline.type === 'text' && inline.text.includes('888.50'), 'inline price');
+assert(inline.type === 'widget' && JSON.stringify(inline).includes('888.50'), 'inline price');
 
 // Failure path still yields a renderable widget.
 const failed = await widget(badCtx('systemSmall'));

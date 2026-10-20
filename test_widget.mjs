@@ -39,11 +39,12 @@ assert(inline.type === 'widget' && JSON.stringify(inline).includes('888.50'), 'i
 const failed = await widget(badCtx('systemSmall'));
 assert(failed.type === 'widget' && JSON.stringify(failed).includes('读取失败'), 'failure card');
 
-// Small widget must not carry the 如意金 line (space), medium must.
-const smallKeys = JSON.stringify(await widget(okCtx('systemSmall')));
-assert(!smallKeys.includes('如意金'), 'small stays compact');
-const mediumKeys = JSON.stringify(await widget(okCtx('systemMedium')));
-assert(mediumKeys.includes('如意金'), 'medium shows ruyi');
+// Both products must appear in every system size.
+for (const family of ['systemSmall', 'systemMedium', 'systemLarge']) {
+  const flat = JSON.stringify(await widget(okCtx(family)));
+  assert(flat.includes('积存金') && flat.includes('如意金'), family + ' products');
+  assert(flat.includes('买入') && flat.includes('卖出'), family + ' columns');
+}
 
 console.log('ok', { price: '888.50', families: 6 });
 

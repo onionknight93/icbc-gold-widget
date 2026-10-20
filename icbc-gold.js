@@ -1,6 +1,6 @@
 /******************************
 脚本名称: ICBCGold
-Version : v1.5.0
+Version : v1.6.0
 平台: Egern
 风格: Robinhood（扁平、无卡片、大数字）
 功能: 工行积存金 / 如意金积存 买入卖出价
@@ -35,60 +35,75 @@ export default async function (ctx) {
   }
 
   const g = d.gold || {};
+  const ruyi = d.ruyi && Number(d.ruyi.buy) > 0 ? d.ruyi : null;
   const trend = g.trend || 'flat';
   const color = trend === 'up' ? UP : trend === 'down' ? DOWN : SUB;
   const arrow = trend === 'up' ? '↑' : trend === 'down' ? '↓' : '→';
   const iso = isoOf(d.updated);
   const big = ctx.widgetFamily !== 'systemSmall';
-  const heroSize = big ? 34 : 28;
-  const rowSize = big ? 19 : 16;
-  const pad = big ? 14 : 12;
+
+  // 如意金是主标的；缺失时退回积存金，布局不变。
+  const hero = ruyi
+    ? { name: '如意金', buy: fmt(ruyi.buy), sell: fmt(ruyi.sell) }
+    : { name: '积存金', buy: fmt(g.active), sell: fmt(g.redeem) };
+  const heroSize = big ? 34 : 27;
+  const subSize = big ? 18 : 15;
 
   if (ctx.widgetFamily === 'accessoryInline') {
     return { type: 'widget', refreshAfter: refreshAfter(), children: [
-      { type: 'text', text: `${fmt(g.active)} ${arrow}`, font: { size: 15, weight: 'bold' }, textColor: color, maxLines: 1 },
+      { type: 'text', text: `${hero.name} ${hero.buy}`, font: { size: 15, weight: 'bold' }, textColor: TEXT, maxLines: 1 },
     ] };
   }
   if (ctx.widgetFamily === 'accessoryCircular') {
     return { type: 'widget', refreshAfter: refreshAfter(), children: [
-      { type: 'text', text: fmt(g.active), font: { size: 13, weight: 'bold' }, textColor: color, maxLines: 1, minScale: 0.6 },
-      { type: 'text', text: arrow, font: { size: 10, weight: 'bold' }, textColor: color, maxLines: 1 },
+      { type: 'text', text: hero.buy, font: { size: 13, weight: 'bold' }, textColor: TEXT, maxLines: 1, minScale: 0.6 },
+      { type: 'text', text: hero.name, font: { size: 9, weight: 'medium' }, textColor: SUB, maxLines: 1 },
     ] };
   }
   if (ctx.widgetFamily === 'accessoryRectangular') {
     return { type: 'widget', refreshAfter: refreshAfter(), children: [
-      { type: 'text', text: `积存金 ${fmt(g.active)} ${arrow}`, font: { size: 14, weight: 'bold' }, textColor: color, maxLines: 1 },
-      { type: 'text', text: `如意金 买${fmt(d.ruyi?.buy)} 卖${fmt(d.ruyi?.sell)}`, font: { size: 11, weight: 'medium' }, textColor: SUB, maxLines: 1 },
+      { type: 'text', text: `如意金 买${fmt(ruyi?.buy)} 卖${fmt(ruyi?.sell)}`, font: { size: 14, weight: 'bold' }, textColor: TEXT, maxLines: 1 },
+      { type: 'text', text: `积存金 ${fmt(g.active)} ${arrow}`, font: { size: 11, weight: 'medium' }, textColor: color, maxLines: 1 },
     ] };
   }
 
   return {
-    type: 'widget', url: PAGE, padding: pad, gap: 6, refreshAfter: refreshAfter(),
+    type: 'widget', url: PAGE, padding: big ? 14 : 12, gap: big ? 8 : 6, refreshAfter: refreshAfter(),
     backgroundColor: BG,
     children: [
-      // 主标的：名称 + 大数字 + 涨跌
-      { type: 'text', text: '积存金', font: { size: 12, weight: 'medium' }, textColor: SUB, maxLines: 1 },
+      // 主标的：如意金，买 / 卖 两个大数字
+      { type: 'text', text: hero.name, font: { size: 12, weight: 'medium' }, textColor: SUB, maxLines: 1 },
       {
         type: 'stack', direction: 'row', alignItems: 'end',
         children: [
-          { type: 'text', text: fmt(g.active), font: { size: heroSize, weight: 'bold' }, textColor: TEXT, maxLines: 1, minScale: 0.6 },
-          { type: 'spacer', length: 6 },
-          { type: 'text', text: `${arrow} 元/克`, font: { size: 12, weight: 'semibold' }, textColor: color, maxLines: 1 },
-          { type: 'spacer' },
+          {
+            type: 'stack', direction: 'column', flex: 1, gap: 1,
+            children: [
+              { type: 'text', text: hero.buy, font: { size: heroSize, weight: 'bold' }, textColor: TEXT, maxLines: 1, minScale: 0.55 },
+              { type: 'text', text: '买入', font: { size: 10, weight: 'medium' }, textColor: SUB, maxLines: 1 },
+            ],
+          },
+          {
+            type: 'stack', direction: 'column', flex: 1, gap: 1, alignItems: 'end',
+            children: [
+              { type: 'text', text: hero.sell, font: { size: heroSize, weight: 'bold' }, textColor: TEXT, textAlign: 'right', maxLines: 1, minScale: 0.55 },
+              { type: 'text', text: '卖出', font: { size: 10, weight: 'medium' }, textColor: SUB, textAlign: 'right', maxLines: 1 },
+            ],
+          },
         ],
       },
       { type: 'stack', height: 1, backgroundColor: HAIR, children: [] },
-      // 如意金：买 / 卖
+      // 次级：积存金
       {
         type: 'stack', direction: 'row', alignItems: 'center', gap: 6,
         children: [
-          { type: 'text', text: '如意金', font: { size: 12, weight: 'medium' }, textColor: SUB, maxLines: 1 },
+          { type: 'text', text: '积存金', font: { size: 12, weight: 'medium' }, textColor: SUB, maxLines: 1 },
           { type: 'spacer' },
           { type: 'text', text: '买', font: { size: 11, weight: 'medium' }, textColor: SUB, maxLines: 1 },
-          { type: 'text', text: fmt(d.ruyi?.buy), font: { size: rowSize, weight: 'semibold' }, textColor: TEXT, maxLines: 1, minScale: 0.7 },
+          { type: 'text', text: fmt(g.active), font: { size: subSize, weight: 'semibold' }, textColor: color, maxLines: 1, minScale: 0.7 },
           { type: 'spacer', length: 10 },
           { type: 'text', text: '卖', font: { size: 11, weight: 'medium' }, textColor: SUB, maxLines: 1 },
-          { type: 'text', text: fmt(d.ruyi?.sell), font: { size: rowSize, weight: 'semibold' }, textColor: TEXT, maxLines: 1, minScale: 0.7 },
+          { type: 'text', text: fmt(g.redeem), font: { size: subSize, weight: 'semibold' }, textColor: color, maxLines: 1, minScale: 0.7 },
         ],
       },
       { type: 'spacer' },
@@ -97,7 +112,7 @@ export default async function (ctx) {
         children: [
           { type: 'date', date: iso, format: 'relative', font: { size: 9, weight: 'medium' }, textColor: SUB, maxLines: 1 },
           { type: 'spacer' },
-          { type: 'text', text: 'ICBC', font: { size: 9, weight: 'medium' }, textColor: SUB, maxLines: 1 },
+          { type: 'text', text: `ICBC ${arrow}`, font: { size: 9, weight: 'medium' }, textColor: color, maxLines: 1 },
         ],
       },
     ],

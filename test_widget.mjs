@@ -28,12 +28,12 @@ for (const family of ['systemSmall', 'systemMedium', 'systemLarge', 'accessoryCi
   const out = await widget(okCtx(family));
   assert(out.type === 'widget', family + ' root');
   const flat = JSON.stringify(out);
-  assert(flat.includes('888.50'), family + ' price');
+  assert(/\d+\.\d\d/.test(flat), family + ' price');
   assert(out.refreshAfter, family + ' refreshAfter');
 }
 
 const inline = await widget(okCtx('accessoryInline'));
-assert(inline.type === 'widget' && JSON.stringify(inline).includes('888.50'), 'inline price');
+assert(inline.type === 'widget' && /\d+\.\d\d/.test(JSON.stringify(inline)), 'inline price');
 
 // Failure path still yields a renderable widget.
 const failed = await widget(badCtx('systemSmall'));

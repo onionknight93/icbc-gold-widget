@@ -1,9 +1,13 @@
 // Egern generic widget: ICBC 积存金 / 如意金积存.
 // Data comes from a pre-fetched snapshot (see fetch_gold.py) because the ICBC
 // edge host has no RFC 5746 secure renegotiation, which iOS refuses.
+//
+// The repo is private, so the read goes through the GitHub API and needs a
+// fine-grained token with Contents: Read-only on that repo, set as GH_TOKEN
+// in the widget's env. Without it the widget shows a failure card.
 
-const FALLBACK_URL =
-  'https://raw.githubusercontent.com/xinxie/icbc-gold-widget/data/gold.json';
+const REPO = 'xinxie/icbc-gold-widget';
+const DATA = `https://api.github.com/repos/${REPO}/contents/gold.json?ref=data`;
 const SOURCE_PAGE =
   'https://mybank.icbc.com.cn/icbc/newperbank/perbank3/gold/goldaccrual_query_out.jsp';
 
@@ -24,10 +28,13 @@ function card(children, bg = '#1C1C1E') {
 }
 
 export default async function (ctx) {
-  const url = ctx.env.DATA_URL || FALLBACK_URL;
+  const url = ctx.env.DATA_URL || DATA;
+  const headers = { Accept: 'application/vnd.github.raw' };
+  if (ctx.env.GH_TOKEN) headers.Authorization = 'Bearer ' + ctx.env.GH_TOKEN;
+
   let d;
   try {
-    const resp = await ctx.http.get(url, { timeout: 8000 });
+    const resp = await ctx.http.get(url, { timeout: 10000, headers });
     d = await resp.json();
   } catch (e) {
     return card([

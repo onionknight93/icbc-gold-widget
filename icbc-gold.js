@@ -1,12 +1,13 @@
 /******************************
 脚本名称: GoldBuySell
-Version : v2.2.0
+Version : v2.3.0
 平台: Egern
 风格: Robinhood（扁平、无卡片、大数字 + 小字）
 功能: 工行如意金 / 建行易存金 买入卖出价 + 价差
-数据: VPS 每 10 分钟抓一次 → onionknight93/icbc-gold-widget/data/gold.json
+数据: VPS 交易时段每 5 分钟抓一次 → onionknight93/icbc-gold-widget/data/gold.json
 说明: 两家银行都不支持 RFC 5746，iOS 无法直连，所以读快照
       不存任何高低/历史，快照只有当前买卖价
+      工行 09:00-22:30、建行 09:00-16:30（周一至周五）
 **********************************/
 const REPO = 'onionknight93/icbc-gold-widget';
 const DATA = `https://raw.githubusercontent.com/${REPO}/data/gold.json`;
@@ -88,7 +89,7 @@ function bankRow(b, label, big) {
     type: 'stack', direction: 'row', alignItems: 'center', gap: 6,
     children: [
       {
-        type: 'text', text: (b.name || label) + (b.stale ? '（旧）' : ''),
+        type: 'text', text: (b.name || label) + (b.stale ? '（旧）' : b.closed ? ' 收盘' : ''),
         font: { size: big ? 13 : 11, weight: 'medium' }, textColor: SUB, maxLines: 1, minScale: 0.8,
       },
       { type: 'spacer' },
@@ -137,5 +138,5 @@ function one(v) {
 }
 
 function refreshAfter() {
-  return new Date(Date.now() + 10 * 60 * 1000).toISOString();
+  return new Date(Date.now() + 5 * 60 * 1000).toISOString();
 }

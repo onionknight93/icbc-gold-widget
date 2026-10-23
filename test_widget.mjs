@@ -30,7 +30,7 @@ for (const family of ['systemSmall', 'systemMedium', 'systemLarge', 'accessoryCi
   assert(/\d+\.\d\d/.test(JSON.stringify(out)), family + ' price');
   assert(out.refreshAfter, family + ' refreshAfter');
   const mins = (Date.parse(out.refreshAfter) - Date.now()) / 60000;
-  assert(mins > 9 && mins <= 10.1, family + ' 10min refresh');
+  assert(mins > 4 && mins <= 5.1, family + ' 5min refresh');
 }
 
 const inline = await widget(okCtx('accessoryInline'));
@@ -63,9 +63,11 @@ for (const family of ['systemSmall', 'systemMedium', 'systemLarge']) {
   assert(bad.length === 0, family + ' bad alignItems: ' + bad);
 }
 
-// Stale bank keeps its price but says so.
+// Stale bank keeps its price but says so; a closed bank says 收盘.
 const stale = await widget(okCtx('systemSmall', { ...snap, ccb: { ...snap.ccb, stale: true } }));
 assert(JSON.stringify(stale).includes('（旧）') && JSON.stringify(stale).includes('860.60'), 'stale row');
+const closed = await widget(okCtx('systemSmall', { ...snap, ccb: { ...snap.ccb, closed: true } }));
+assert(JSON.stringify(closed).includes('收盘') && JSON.stringify(closed).includes('860.60'), 'closed row');
 
 console.log('ok', { banks: 2, families: 6 });
 

@@ -1,0 +1,13 @@
+# NAME: Bilibili PCDN
+# POLICY: REJECT-NO-DROP
+DOMAIN-SUFFIX,mcdn.bilivideo.cn
+DOMAIN-SUFFIX,mcdn.bilivideo.com
+DOMAIN-SUFFIX,ppio.bilivideo.cn
+DOMAIN-SUFFIX,ppio.bilivideo.com
+DOMAIN-SUFFIX,kodo.bilivideo.cn
+DOMAIN-SUFFIX,kodo.bilivideo.com
+DOMAIN-WILDCARD,*.mountaintoys.*
+DOMAIN-WILDCARD,*.szbdyd.*
+DOMAIN-WILDCARD,*.smtcdns.*
+DOMAIN,pcdn.biliapi.net
+DOMAIN-WILDCARD,*pcdn*.biliapi.net

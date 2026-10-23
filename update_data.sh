@@ -1,6 +1,6 @@
 #!/bin/bash
-# Refresh the ICBC snapshot branch. One commit, amended and force-pushed, so
-# 5-minute updates never grow history.
+# Refresh the gold snapshot branch. One commit, amended and force-pushed, so
+# frequent updates never grow history.
 set -euo pipefail
 cd /home/ubuntu/egern-widgets
 GOLD_OUT=/home/ubuntu/egern-widgets/data-repo/gold.json python3 fetch_gold.py >/dev/null

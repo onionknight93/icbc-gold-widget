@@ -7,15 +7,15 @@ await writeFile(tmp, src);
 const { default: widget } = await import(tmp + '?v=' + Date.now());
 
 const snap = {
-  updated: '2026-10-20 14:34:29',
-  gold: { name: '积存金', active: 888.5, redeem: 888.5, reg: 888.19, low: 885.8, high: 891.89, trend: 'down' },
-  ruyi: { name: '如意金积存', buy: 904.55, sell: 884.05 },
+  updated: '2026-10-23 11:46:22',
+  icbc: { name: '工行如意金', buy: 880.45, sell: 860.01 },
+  ccb: { name: '建行易存金', buy: 880.1, sell: 860.6 },
 };
 
-const okCtx = (family) => ({
+const okCtx = (family, data = snap) => ({
   env: {},
   widgetFamily: family,
-  http: { get: async () => ({ json: async () => snap }) },
+  http: { get: async () => ({ json: async () => data }) },
 });
 const badCtx = (family) => ({
   env: {},
@@ -23,13 +23,14 @@ const badCtx = (family) => ({
   http: { get: async () => { throw new Error('TLS handshake failed'); } },
 });
 
-// Every family must render without throwing, and the main price must show up.
+// Every family must render without throwing, and prices must show up.
 for (const family of ['systemSmall', 'systemMedium', 'systemLarge', 'accessoryCircular', 'accessoryRectangular']) {
   const out = await widget(okCtx(family));
   assert(out.type === 'widget', family + ' root');
-  const flat = JSON.stringify(out);
-  assert(/\d+\.\d\d/.test(flat), family + ' price');
+  assert(/\d+\.\d\d/.test(JSON.stringify(out)), family + ' price');
   assert(out.refreshAfter, family + ' refreshAfter');
+  const mins = (Date.parse(out.refreshAfter) - Date.now()) / 60000;
+  assert(mins > 9 && mins <= 10.1, family + ' 10min refresh');
 }
 
 const inline = await widget(okCtx('accessoryInline'));
@@ -39,14 +40,20 @@ assert(inline.type === 'widget' && /\d+\.\d\d/.test(JSON.stringify(inline)), 'in
 const failed = await widget(badCtx('systemSmall'));
 assert(failed.type === 'widget' && JSON.stringify(failed).includes('读取失败'), 'failure card');
 
-// Both products must appear in every system size.
+// Both banks, buy+sell, in every system size — and no 积存金 price.
 for (const family of ['systemSmall', 'systemMedium', 'systemLarge']) {
   const flat = JSON.stringify(await widget(okCtx(family)));
-  assert(flat.includes('积存金') && flat.includes('如意金'), family + ' products');
+  for (const v of ['880.45', '860.01', '880.10', '860.60']) assert(flat.includes(v), family + ' ' + v);
+  assert(flat.includes('如意金') && flat.includes('易存金'), family + ' banks');
   assert(flat.includes('买') && flat.includes('卖'), family + ' columns');
+  assert(!flat.includes('积存金'), family + ' no 积存金');
 }
 
-console.log('ok', { price: '888.50', families: 6 });
+// Stale bank keeps its price but says so.
+const stale = await widget(okCtx('systemSmall', { ...snap, ccb: { ...snap.ccb, stale: true } }));
+assert(JSON.stringify(stale).includes('（旧）') && JSON.stringify(stale).includes('860.60'), 'stale row');
+
+console.log('ok', { banks: 2, families: 6 });
 
 function assert(cond, what) {
   if (!cond) {

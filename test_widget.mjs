@@ -8,14 +8,8 @@ const { default: widget } = await import(tmp + '?v=' + Date.now());
 
 const snap = {
   updated: '2026-10-23 11:46:22',
-  icbc: {
-    name: '工行如意金', buy: 880.45, sell: 860.01, open: 878.2,
-    hi: { buy: 886.2, sell: 866.0 }, lo: { buy: 875.1, sell: 855.0 },
-  },
-  ccb: {
-    name: '建行易存金', buy: 880.1, sell: 860.6, open: 879.5,
-    hi: { buy: 884.3, sell: 864.4 }, lo: { buy: 874.0, sell: 854.2 },
-  },
+  icbc: { name: '工行如意金', buy: 880.45, sell: 860.01 },
+  ccb: { name: '建行易存金', buy: 880.1, sell: 860.6 },
 };
 
 const okCtx = (family, data = snap) => ({
@@ -46,26 +40,16 @@ assert(inline.type === 'widget' && /\d+\.\d\d/.test(JSON.stringify(inline)), 'in
 const failed = await widget(badCtx('systemSmall'));
 assert(failed.type === 'widget' && JSON.stringify(failed).includes('读取失败'), 'failure card');
 
-// Both banks, buy+sell, high/low + spread under the numbers — and no 积存金 price.
+// Both banks, buy+sell and spread — no hi/lo, no 积存金, no stored history.
 for (const family of ['systemSmall', 'systemMedium', 'systemLarge']) {
   const flat = JSON.stringify(await widget(okCtx(family)));
   for (const v of ['880.45', '860.01', '880.10', '860.60']) assert(flat.includes(v), family + ' ' + v);
   assert(flat.includes('如意金') && flat.includes('易存金'), family + ' banks');
   assert(flat.includes('买') && flat.includes('卖'), family + ' columns');
   assert(!flat.includes('积存金'), family + ' no 积存金');
-  // 买 880.45 的高/低，卖 860.01 的高/低，各自在自己的小字里
-  assert(flat.includes('高886.20 低875.10'), family + ' icbc buy range');
-  assert(flat.includes('高866.00 低855.00'), family + ' icbc sell range');
-  assert(flat.includes('高884.30 低874.00'), family + ' ccb buy range');
-  assert(flat.includes('高864.40 低854.20'), family + ' ccb sell range');
-  assert(flat.includes('价差 20.4'), family + ' icbc spread');
-  assert(flat.includes('价差 19.5'), family + ' ccb spread');
+  assert(flat.includes('价差 20.4') && flat.includes('价差 19.5'), family + ' spreads');
+  assert(!/高|低|%/.test(flat), family + ' no sampled ranges');
 }
-// 中号/大号才放日内涨跌，小号放不下
-const small = JSON.stringify(await widget(okCtx('systemSmall')));
-const medium = JSON.stringify(await widget(okCtx('systemMedium')));
-assert(!small.includes('%'), 'small stays uncluttered');
-assert(medium.includes('+0.26%') && medium.includes('+0.07%'), 'medium day change');
 
 // ponytail: WidgetStackAlignment is an enum — "top" blew up the widget once.
 for (const family of ['systemSmall', 'systemMedium', 'systemLarge']) {

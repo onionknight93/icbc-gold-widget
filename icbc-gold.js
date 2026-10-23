@@ -1,12 +1,12 @@
 /******************************
 脚本名称: GoldBuySell
-Version : v2.1.0
+Version : v2.2.0
 平台: Egern
-风格: Robinhood（扁平、无卡片、大数字 + 小字辅助）
-功能: 工行如意金 / 建行易存金 买入卖出价 + 日内高低 + 价差
+风格: Robinhood（扁平、无卡片、大数字 + 小字）
+功能: 工行如意金 / 建行易存金 买入卖出价 + 价差
 数据: VPS 每 10 分钟抓一次 → onionknight93/icbc-gold-widget/data/gold.json
 说明: 两家银行都不支持 RFC 5746，iOS 无法直连，所以读快照
-      高/低取自当天每 10 分钟的采样，不是银行官方极值
+      不存任何高低/历史，快照只有当前买卖价
 **********************************/
 const REPO = 'onionknight93/icbc-gold-widget';
 const DATA = `https://raw.githubusercontent.com/${REPO}/data/gold.json`;
@@ -16,8 +16,6 @@ const PAGE =
 const BG = '#FFFFFF';
 const TEXT = '#000000';
 const SUB = '#8E8E93';
-const UP = '#00C805';   // Robinhood green
-const DOWN = '#FF5000'; // Robinhood red
 
 // 工行没有叫「易存金」的产品，对标建行易存金的是如意金积存
 const BANKS = [
@@ -84,8 +82,7 @@ export default async function (ctx) {
 
 function bankRow(b, label, big) {
   const spread = b.buy > 0 && b.sell > 0 ? b.buy - b.sell : null;
-  const change = b.open > 0 && b.buy > 0 ? ((b.buy - b.open) / b.open) * 100 : null;
-  const color = change > 0 ? UP : change < 0 ? DOWN : SUB;
+  const size = big ? 24 : 18;
 
   const header = {
     type: 'stack', direction: 'row', alignItems: 'center', gap: 6,
@@ -99,43 +96,24 @@ function bankRow(b, label, big) {
         type: 'text', text: `价差 ${one(spread)}`,
         font: { size: big ? 10 : 9, weight: 'medium' }, textColor: SUB, maxLines: 1,
       },
-      ...(big && change !== null
-        ? [{
-            type: 'text', text: `${change > 0 ? '+' : ''}${change.toFixed(2)}%`,
-            font: { size: 11, weight: 'semibold' }, textColor: color, maxLines: 1,
-          }]
-        : []),
     ],
   };
 
-  const side = (tag, v, hi, lo) => ({
-    type: 'stack', direction: 'column', gap: 1,
+  const side = (tag, v) => ({
+    type: 'stack', direction: 'row', alignItems: 'center', gap: 4,
     children: [
-      {
-        type: 'stack', direction: 'row', alignItems: 'center', gap: 4,
-        children: [
-          { type: 'text', text: tag, font: { size: 11, weight: 'medium' }, textColor: SUB, maxLines: 1 },
-          { type: 'text', text: fmt(v), font: { size: big ? 24 : 18, weight: 'bold' }, textColor: TEXT, maxLines: 1, minScale: 0.7 },
-        ],
-      },
-      {
-        type: 'text', text: `高${fmt(hi)} 低${fmt(lo)}`,
-        font: { size: big ? 9 : 8, weight: 'medium' }, textColor: SUB, maxLines: 1, minScale: 0.8,
-      },
+      { type: 'text', text: tag, font: { size: 11, weight: 'medium' }, textColor: SUB, maxLines: 1 },
+      { type: 'text', text: fmt(v), font: { size, weight: 'bold' }, textColor: TEXT, maxLines: 1, minScale: 0.7 },
     ],
   });
 
   return {
-    type: 'stack', direction: 'column', gap: big ? 4 : 2,
+    type: 'stack', direction: 'column', gap: big ? 3 : 1,
     children: [
       header,
       {
         type: 'stack', direction: 'row', alignItems: 'center',
-        children: [
-          side('买', b.buy, b.hi?.buy, b.lo?.buy),
-          { type: 'spacer' },
-          side('卖', b.sell, b.hi?.sell, b.lo?.sell),
-        ],
+        children: [side('买', b.buy), { type: 'spacer' }, side('卖', b.sell)],
       },
     ],
   };

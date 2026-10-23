@@ -65,32 +65,21 @@ def ccb():
     raise RuntimeError("gjsycj01: 易存金 row not found")
 
 
-def with_range(cur, old):
-    """Add the day's open and sampled high/low; both banks update every 10 min."""
-    cur["open"] = (old or {}).get("open", cur["buy"])
-    for kind, pick in (("hi", max), ("lo", min)):
-        prev_range = (old or {}).get(kind) or {}
-        cur[kind] = {k: pick(prev_range.get(k, cur[k]), cur[k]) for k in ("buy", "sell")}
-    return cur
-
-
 def main():
     prev = json.loads(OUT.read_text(encoding="utf-8")) if OUT.exists() else {}
-    today = time.strftime("%Y-%m-%d")
-    same_day = str(prev.get("updated", "")).startswith(today)
     snap = {"updated": time.strftime("%Y-%m-%d %H:%M:%S")}
     fresh = False
     for key, fn in (("icbc", icbc), ("ccb", ccb)):
         try:
-            snap[key] = with_range(fn(), prev.get(key) if same_day else None)
+            snap[key] = fn()
             fresh = True
         except Exception as exc:
             print(f"warn: {key}: {exc}", file=sys.stderr)
             if prev.get(key):
+                # ponytail: no derived history on the VPS — carry the last quote only
                 snap[key] = {**prev[key], "stale": True}
     if not fresh:
         sys.exit("no bank returned a price; keeping previous snapshot")
-
 
     fd, tmp = tempfile.mkstemp(dir=OUT.parent, suffix=".tmp")
     with os.fdopen(fd, "w", encoding="utf-8") as fh:
@@ -100,15 +89,4 @@ def main():
 
 
 if __name__ == "__main__":
-    if "--selftest" in sys.argv:  # ponytail: one check for the range merge
-        assert with_range({"buy": 10.0, "sell": 9.0}, None) == {
-            "buy": 10.0, "sell": 9.0, "open": 10.0,
-            "hi": {"buy": 10.0, "sell": 9.0}, "lo": {"buy": 10.0, "sell": 9.0}}
-        r = with_range({"buy": 10.0, "sell": 9.0},
-                       {"open": 9.5, "hi": {"buy": 10.2, "sell": 9.1},
-                        "lo": {"buy": 9.8, "sell": 8.9}})
-        assert (r["open"], r["hi"], r["lo"]) == (
-            9.5, {"buy": 10.2, "sell": 9.1}, {"buy": 9.8, "sell": 8.9})
-        print("selftest ok")
-    else:
-        main()
+    main()

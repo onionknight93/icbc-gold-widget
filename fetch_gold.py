@@ -90,7 +90,7 @@ def main():
             continue
         try:
             quote = fn()
-            quote["at"] = now.strftime("%H:%M")
+            quote["at"] = now.strftime("%Y-%m-%d %H:%M")
             snap[key] = quote
             fresh = True
         except Exception as exc:

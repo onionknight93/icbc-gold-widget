@@ -91,7 +91,7 @@ function bankRow(b, label, big) {
         font: { size: big ? 13 : 11, weight: 'medium' }, textColor: SUB, maxLines: 1, minScale: 0.8,
       },
       ...(b.at ? [{
-        type: 'text', text: b.at,
+        type: 'text', text: String(b.at).slice(11, 16) || String(b.at),
         font: { size: big ? 10 : 9, weight: 'medium' }, textColor: SUB, maxLines: 1, minScale: 0.8,
       }] : []),
       { type: 'spacer' },

@@ -8,8 +8,8 @@ const { default: widget } = await import(tmp + '?v=' + Date.now());
 
 const snap = {
   updated: '2026-10-23 11:46:22',
-  icbc: { name: '工行如意金', buy: 880.45, sell: 860.01, at: '12:20' },
-  ccb: { name: '建行易存金', buy: 880.1, sell: 860.6, at: '12:19' },
+  icbc: { name: '工行如意金', buy: 880.45, sell: 860.01, at: '2026-10-23 12:20' },
+  ccb: { name: '建行易存金', buy: 880.1, sell: 860.6, at: '2026-10-23 12:19' },
 };
 
 const okCtx = (family, data = snap) => ({

@@ -54,10 +54,10 @@ for (const family of ['systemSmall', 'systemMedium', 'systemLarge']) {
   assert(flat.includes('买') && flat.includes('卖'), family + ' columns');
   assert(!flat.includes('积存金'), family + ' no 积存金');
   // 买 880.45 的高/低，卖 860.01 的高/低，各自在自己的小字里
-  assert(flat.includes('高886.2 低875.1'), family + ' icbc buy range');
-  assert(flat.includes('高866.0 低855.0'), family + ' icbc sell range');
-  assert(flat.includes('高884.3 低874.0'), family + ' ccb buy range');
-  assert(flat.includes('高864.4 低854.2'), family + ' ccb sell range');
+  assert(flat.includes('高886.20 低875.10'), family + ' icbc buy range');
+  assert(flat.includes('高866.00 低855.00'), family + ' icbc sell range');
+  assert(flat.includes('高884.30 低874.00'), family + ' ccb buy range');
+  assert(flat.includes('高864.40 低854.20'), family + ' ccb sell range');
   assert(flat.includes('价差 20.4'), family + ' icbc spread');
   assert(flat.includes('价差 19.5'), family + ' ccb spread');
 }

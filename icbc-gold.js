@@ -119,8 +119,8 @@ function bankRow(b, label, big) {
         ],
       },
       {
-        type: 'text', text: `高${one(hi)} 低${one(lo)}`,
-        font: { size: big ? 9 : 8, weight: 'medium' }, textColor: SUB, maxLines: 1, minScale: 0.7,
+        type: 'text', text: `高${fmt(hi)} 低${fmt(lo)}`,
+        font: { size: big ? 9 : 8, weight: 'medium' }, textColor: SUB, maxLines: 1, minScale: 0.8,
       },
     ],
   });

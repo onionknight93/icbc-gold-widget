@@ -67,6 +67,18 @@ const medium = JSON.stringify(await widget(okCtx('systemMedium')));
 assert(!small.includes('%'), 'small stays uncluttered');
 assert(medium.includes('+0.26%') && medium.includes('+0.07%'), 'medium day change');
 
+// ponytail: WidgetStackAlignment is an enum — "top" blew up the widget once.
+for (const family of ['systemSmall', 'systemMedium', 'systemLarge']) {
+  const out = await widget(okCtx(family));
+  const bad = [];
+  (function walk(n) {
+    if (!n || typeof n !== 'object') return;
+    if (n.alignItems && !['start', 'center', 'end'].includes(n.alignItems)) bad.push(n.alignItems);
+    (n.children || []).forEach(walk);
+  })(out);
+  assert(bad.length === 0, family + ' bad alignItems: ' + bad);
+}
+
 // Stale bank keeps its price but says so.
 const stale = await widget(okCtx('systemSmall', { ...snap, ccb: { ...snap.ccb, stale: true } }));
 assert(JSON.stringify(stale).includes('（旧）') && JSON.stringify(stale).includes('860.60'), 'stale row');

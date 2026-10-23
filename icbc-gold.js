@@ -130,7 +130,7 @@ function bankRow(b, label, big) {
     children: [
       header,
       {
-        type: 'stack', direction: 'row', alignItems: 'top',
+        type: 'stack', direction: 'row', alignItems: 'center',
         children: [
           side('买', b.buy, b.hi?.buy, b.lo?.buy),
           { type: 'spacer' },

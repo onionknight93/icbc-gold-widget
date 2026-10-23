@@ -1,0 +1,10 @@
+domain_suffix_set:
+  - mcdn.bilivideo.cn
+  - mcdn.bilivideo.com
+  - ppio.bilivideo.cn
+  - ppio.bilivideo.com
+  - kodo.bilivideo.cn
+  - kodo.bilivideo.com
+domain_regex_set:
+  - "^.*\\.(mountaintoys|szbdyd|smtcdns)\\.[^.]+$"
+  - "^.*pcdn.*\\.biliapi\\.net$"

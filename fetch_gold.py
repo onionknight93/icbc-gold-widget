@@ -16,8 +16,8 @@ ICBC = "https://mybank.icbc.com.cn/servlet/AsynGetDataServlet?tranCode=A00505"
 CCB = "https://www.ccb.com/cn/home/news/gjsycj01.xml"
 CCB_EASY_STORE_ID = "291000001"  # 易存金「标准建行金」
 
-# 交易时段（含收盘那一分钟），周一到周五；其余时间不拉对应接口
-WINDOWS = {"icbc": (9 * 60, 22 * 60 + 30), "ccb": (9 * 60, 16 * 60 + 30)}
+# 交易时段（含收盘那一分钟）+ 交易天数：工行自然日（天天），建行工作日
+WINDOWS = {"icbc": (9 * 60 + 10, 22 * 60 + 30, 7), "ccb": (9 * 60, 16 * 60 + 30, 5)}
 
 HERE = pathlib.Path(__file__).resolve().parent
 OUT = pathlib.Path(os.environ.get("GOLD_OUT", HERE / "gold.json"))
@@ -69,8 +69,8 @@ def ccb():
 
 
 def in_window(key, now):
-    start, end = WINDOWS[key]
-    return now.weekday() < 5 and start <= now.hour * 60 + now.minute <= end
+    start, end, days = WINDOWS[key]
+    return now.weekday() < days and start <= now.hour * 60 + now.minute <= end
 
 
 def main():
@@ -115,9 +115,12 @@ if __name__ == "__main__":
         assert in_window("ccb", at(23, 9, 0)) is True
         assert in_window("ccb", at(23, 16, 30)) is True
         assert in_window("ccb", at(23, 16, 31)) is False
+        assert in_window("icbc", at(23, 9, 9)) is False
+        assert in_window("icbc", at(23, 9, 10)) is True
         assert in_window("icbc", at(23, 22, 30)) is True
         assert in_window("icbc", at(23, 22, 31)) is False
-        assert in_window("icbc", at(24, 12, 0)) is False  # Saturday
+        assert in_window("icbc", at(24, 12, 0)) is True   # Saturday: 自然日
+        assert in_window("ccb", at(24, 12, 0)) is False   # Saturday: 工作日 only
         print("selftest ok")
     else:
         main()

@@ -7,7 +7,7 @@ Version : v2.4.0
 数据: VPS 交易时段每 5 分钟抓一次 → onionknight93/icbc-gold-widget/data/gold.json
 说明: 两家银行都不支持 RFC 5746，iOS 无法直连，所以读快照
       不存任何高低/历史，快照只有当前买卖价
-      工行 09:00-22:30、建行 09:00-16:30（周一至周五）
+      工行 09:10-22:30（自然日）、建行 09:00-16:30（周一至周五）
 **********************************/
 const REPO = 'onionknight93/icbc-gold-widget';
 const DATA = `https://raw.githubusercontent.com/${REPO}/data/gold.json`;

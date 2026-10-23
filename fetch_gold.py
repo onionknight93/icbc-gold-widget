@@ -89,7 +89,9 @@ def main():
                 snap[key] = {**prev[key], "closed": True}
             continue
         try:
-            snap[key] = fn()
+            quote = fn()
+            quote["at"] = now.strftime("%H:%M")
+            snap[key] = quote
             fresh = True
         except Exception as exc:
             print(f"warn: {key}: {exc}", file=sys.stderr)

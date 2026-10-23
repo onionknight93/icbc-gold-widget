@@ -1,6 +1,6 @@
 /******************************
 脚本名称: GoldBuySell
-Version : v2.3.0
+Version : v2.4.0
 平台: Egern
 风格: Robinhood（扁平、无卡片、大数字 + 小字）
 功能: 工行如意金 / 建行易存金 买入卖出价 + 价差
@@ -39,7 +39,6 @@ export default async function (ctx) {
     };
   }
 
-  const iso = isoOf(d.updated);
   const big = ctx.widgetFamily !== 'systemSmall';
   const pad = big ? 14 : 12;
 
@@ -72,7 +71,6 @@ export default async function (ctx) {
       {
         type: 'stack', direction: 'row', alignItems: 'center',
         children: [
-          { type: 'date', date: iso, format: 'relative', font: { size: 9, weight: 'medium' }, textColor: SUB, maxLines: 1 },
           { type: 'spacer' },
           { type: 'text', text: '元/克', font: { size: 9, weight: 'medium' }, textColor: SUB, maxLines: 1 },
         ],
@@ -92,10 +90,14 @@ function bankRow(b, label, big) {
         type: 'text', text: (b.name || label) + (b.stale ? '（旧）' : b.closed ? ' 收盘' : ''),
         font: { size: big ? 13 : 11, weight: 'medium' }, textColor: SUB, maxLines: 1, minScale: 0.8,
       },
+      ...(b.at ? [{
+        type: 'text', text: b.at,
+        font: { size: big ? 10 : 9, weight: 'medium' }, textColor: SUB, maxLines: 1, minScale: 0.8,
+      }] : []),
       { type: 'spacer' },
       {
         type: 'text', text: `价差 ${one(spread)}`,
-        font: { size: big ? 10 : 9, weight: 'medium' }, textColor: SUB, maxLines: 1,
+        font: { size: big ? 10 : 9, weight: 'medium' }, textColor: SUB, maxLines: 1, minScale: 0.8,
       },
     ],
   };
@@ -118,13 +120,6 @@ function bankRow(b, label, big) {
       },
     ],
   };
-}
-
-function isoOf(stamp) {
-  const s = String(stamp || '');
-  if (!s) return new Date().toISOString();
-  const t = Date.parse(s.includes('T') ? s : s.replace(' ', 'T') + '+08:00');
-  return Number.isFinite(t) ? new Date(t).toISOString() : new Date().toISOString();
 }
 
 function fmt(v) {

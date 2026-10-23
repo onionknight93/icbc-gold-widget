@@ -8,8 +8,8 @@ const { default: widget } = await import(tmp + '?v=' + Date.now());
 
 const snap = {
   updated: '2026-10-23 11:46:22',
-  icbc: { name: '工行如意金', buy: 880.45, sell: 860.01 },
-  ccb: { name: '建行易存金', buy: 880.1, sell: 860.6 },
+  icbc: { name: '工行如意金', buy: 880.45, sell: 860.01, at: '12:20' },
+  ccb: { name: '建行易存金', buy: 880.1, sell: 860.6, at: '12:19' },
 };
 
 const okCtx = (family, data = snap) => ({
@@ -48,6 +48,7 @@ for (const family of ['systemSmall', 'systemMedium', 'systemLarge']) {
   assert(flat.includes('买') && flat.includes('卖'), family + ' columns');
   assert(!flat.includes('积存金'), family + ' no 积存金');
   assert(flat.includes('价差 20.4') && flat.includes('价差 19.5'), family + ' spreads');
+  assert(flat.includes('12:20') && flat.includes('12:19'), family + ' per-bank times');
   assert(!/高|低|%/.test(flat), family + ' no sampled ranges');
 }
 

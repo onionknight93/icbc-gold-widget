@@ -134,16 +134,19 @@ function sgeRow(s, big) {
   const ok = Number.isFinite(n) && n > 0;
   const chg = Number(s && s.chg);
   const color = !Number.isFinite(chg) || chg === 0 ? SUB : chg > 0 ? '#FF3B30' : '#00A650';
+  // 小号一行只放得下 3 段：收盘时用「收盘」顶掉涨跌幅，比挤 4 段稳
+  const note = !ok ? '' : s.closed && !big ? '收盘' : String(s.pct || '');
+  const noteColor = note === '收盘' ? SUB : color;
 
   return {
     type: 'stack', direction: 'row', alignItems: 'center', gap: big ? 8 : 5,
     children: [
       {
-        type: 'text', text: (big ? '上海金 Au99.99' : '沪金') + (s && s.closed ? ' 收盘' : ''),
+        type: 'text', text: (big ? '上海金 Au99.99' : '沪金') + (big && s && s.closed ? ' 收盘' : ''),
         font: { size: big ? 13 : 11, weight: 'medium' }, textColor: SUB, maxLines: 1, minScale: 0.8,
       },
       { type: 'text', text: fmt(n), font: { size: big ? 24 : 16, weight: 'bold' }, textColor: TEXT, maxLines: 1, minScale: 0.7 },
-      { type: 'text', text: ok && s.pct ? String(s.pct) : '', font: { size: big ? 11 : 10, weight: 'medium' }, textColor: color, maxLines: 1, minScale: 0.8 },
+      { type: 'text', text: ok ? note : '', font: { size: big ? 11 : 10, weight: 'medium' }, textColor: noteColor, maxLines: 1, minScale: 0.8 },
       { type: 'spacer' },
       ...(big && s && s.at ? [{
         type: 'text', text: String(s.at).slice(11, 16) || String(s.at),

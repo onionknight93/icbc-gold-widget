@@ -2,3 +2,4 @@ data-repo/
 gold.json
 update.log
 legacy-ssl.cnf
+__pycache__/

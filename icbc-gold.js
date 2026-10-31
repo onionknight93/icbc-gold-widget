@@ -1,13 +1,14 @@
 /******************************
 脚本名称: GoldBuySell
-Version : v2.4.0
+Version : v2.5.0
 平台: Egern
 风格: Robinhood（扁平、无卡片、大数字 + 小字）
-功能: 工行如意金 / 建行易存金 买入卖出价 + 价差
+功能: 工行如意金 / 建行易存金 买入卖出价 + 价差；上金所 Au99.99 现货
 数据: VPS 交易时段每 5 分钟抓一次 → onionknight93/icbc-gold-widget/data/gold.json
 说明: 两家银行都不支持 RFC 5746，iOS 无法直连，所以读快照
       不存任何高低/历史，快照只有当前买卖价
       工行 09:10-22:30（自然日）、建行 09:00-16:30（周一至周五）
+      上海金 09:00-11:30 / 13:30-15:30 / 20:00-次日 02:30（周一至周五）
 **********************************/
 const REPO = 'onionknight93/icbc-gold-widget';
 const DATA = `https://raw.githubusercontent.com/${REPO}/data/gold.json`;
@@ -56,10 +57,14 @@ export default async function (ctx) {
     ] };
   }
   if (ctx.widgetFamily === 'accessoryRectangular') {
-    return { type: 'widget', refreshAfter: refreshAfter(), children: BANKS.map(([k, label]) => {
-      const b = d[k] || {};
-      return { type: 'text', text: `${label.slice(0, 2)} 买${fmt(b.buy)} 卖${fmt(b.sell)}`, font: { size: 12, weight: 'bold' }, textColor: TEXT, maxLines: 1, minScale: 0.8 };
-    }) };
+    const s = d.sge || {};
+    return { type: 'widget', refreshAfter: refreshAfter(), children: [
+      ...BANKS.map(([k, label]) => {
+        const b = d[k] || {};
+        return { type: 'text', text: `${label.slice(0, 2)} 买${fmt(b.buy)} 卖${fmt(b.sell)}`, font: { size: 12, weight: 'bold' }, textColor: TEXT, maxLines: 1, minScale: 0.8 };
+      }),
+      { type: 'text', text: `沪金 ${fmt(s.last)} ${s.pct || ''}`.trim(), font: { size: 11, weight: 'bold' }, textColor: TEXT, maxLines: 1, minScale: 0.8 },
+    ] };
   }
 
   return {
@@ -67,6 +72,7 @@ export default async function (ctx) {
     backgroundColor: BG,
     children: [
       ...BANKS.map(([k, label]) => bankRow(d[k] || {}, label, big)),
+      sgeRow(d.sge, big),
       { type: 'spacer' },
       {
         type: 'stack', direction: 'row', alignItems: 'center',
@@ -118,6 +124,31 @@ function bankRow(b, label, big) {
         type: 'stack', direction: 'row', alignItems: 'center',
         children: [side('买', b.buy), { type: 'spacer' }, side('卖', b.sell)],
       },
+    ],
+  };
+}
+
+function sgeRow(s, big) {
+  // 小号只剩一条横向空间：标签+价格+涨跌幅挤一行，长度已在 135pt 内验证过
+  const n = Number(s && s.last);
+  const ok = Number.isFinite(n) && n > 0;
+  const chg = Number(s && s.chg);
+  const color = !Number.isFinite(chg) || chg === 0 ? SUB : chg > 0 ? '#FF3B30' : '#00A650';
+
+  return {
+    type: 'stack', direction: 'row', alignItems: 'center', gap: big ? 8 : 5,
+    children: [
+      {
+        type: 'text', text: (big ? '上海金 Au99.99' : '沪金') + (s && s.closed ? ' 收盘' : ''),
+        font: { size: big ? 13 : 11, weight: 'medium' }, textColor: SUB, maxLines: 1, minScale: 0.8,
+      },
+      { type: 'text', text: fmt(n), font: { size: big ? 24 : 16, weight: 'bold' }, textColor: TEXT, maxLines: 1, minScale: 0.7 },
+      { type: 'text', text: ok && s.pct ? String(s.pct) : '', font: { size: big ? 11 : 10, weight: 'medium' }, textColor: color, maxLines: 1, minScale: 0.8 },
+      { type: 'spacer' },
+      ...(big && s && s.at ? [{
+        type: 'text', text: String(s.at).slice(11, 16) || String(s.at),
+        font: { size: 10, weight: 'medium' }, textColor: SUB, maxLines: 1,
+      }] : []),
     ],
   };
 }

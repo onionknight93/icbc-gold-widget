@@ -10,6 +10,7 @@ const snap = {
   updated: '2026-10-23 11:46:22',
   icbc: { name: '工行如意金', buy: 880.45, sell: 860.01, at: '2026-10-23 12:20' },
   ccb: { name: '建行易存金', buy: 880.1, sell: 860.6, at: '2026-10-23 12:19' },
+  sge: { name: '上海金Au99.99', last: 833.0, chg: -21.76, pct: '-2.55%', at: '2026-10-23 12:21' },
 };
 
 const okCtx = (family, data = snap) => ({
@@ -49,7 +50,14 @@ for (const family of ['systemSmall', 'systemMedium', 'systemLarge']) {
   assert(!flat.includes('积存金'), family + ' no 积存金');
   assert(flat.includes('价差 20.4') && flat.includes('价差 19.5'), family + ' spreads');
   assert(flat.includes('12:20') && flat.includes('12:19'), family + ' per-bank times');
-  assert(!/高|低|%/.test(flat), family + ' no sampled ranges');
+  assert(flat.includes('833.00') && flat.includes('-2.55%'), family + ' sge price');
+  assert(!/高|低/.test(flat), family + ' no sampled ranges');
+}
+
+// SGE row survives a snapshot written before the source existed.
+for (const family of ['systemSmall', 'systemMedium']) {
+  const flat = JSON.stringify(await widget(okCtx(family, { ...snap, sge: undefined })));
+  assert(flat.includes('--'), family + ' sge placeholder');
 }
 
 // ponytail: WidgetStackAlignment is an enum — "top" blew up the widget once.

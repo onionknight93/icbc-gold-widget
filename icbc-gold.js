@@ -73,14 +73,17 @@ export default async function (ctx) {
     children: [
       ...BANKS.map(([k, label]) => bankRow(d[k] || {}, label, big)),
       sgeRow(d.sge, big),
-      { type: 'spacer' },
-      {
-        type: 'stack', direction: 'row', alignItems: 'center',
-        children: [
-          { type: 'spacer' },
-          { type: 'text', text: '元/克', font: { size: 9, weight: 'medium' }, textColor: SUB, maxLines: 1 },
-        ],
-      },
+      // 大号的单位已并到上海金那行右侧，省一行高度给第三块两行布局
+      ...(big ? [] : [
+        { type: 'spacer' },
+        {
+          type: 'stack', direction: 'row', alignItems: 'center',
+          children: [
+            { type: 'spacer' },
+            { type: 'text', text: '元/克', font: { size: 9, weight: 'medium' }, textColor: SUB, maxLines: 1 },
+          ],
+        },
+      ]),
     ],
   };
 }
@@ -129,30 +132,53 @@ function bankRow(b, label, big) {
 }
 
 function sgeRow(s, big) {
-  // 小号只剩一条横向空间：标签+价格+涨跌幅挤一行，长度已在 135pt 内验证过
   const n = Number(s && s.last);
   const ok = Number.isFinite(n) && n > 0;
   const chg = Number(s && s.chg);
   const color = !Number.isFinite(chg) || chg === 0 ? SUB : chg > 0 ? '#FF3B30' : '#00A650';
-  // 小号一行只放得下 3 段：收盘/旧用两个字顶掉涨跌幅，比挤 4 段稳
   const flag = s && (s.stale ? (big ? '（旧）' : '旧') : s.closed ? (big ? ' 收盘' : '收盘') : '');
-  const note = !ok ? '' : !big && flag ? flag : String(s.pct || '');
-  const noteColor = !big && flag ? SUB : color;
 
+  if (!big) {
+    // 小号只有一行：3 段封顶，收盘/旧时用两个字顶掉涨跌幅
+    return {
+      type: 'stack', direction: 'row', alignItems: 'center', gap: 5,
+      children: [
+        { type: 'text', text: '沪金', font: { size: 11, weight: 'medium' }, textColor: SUB, maxLines: 1, minScale: 0.8 },
+        { type: 'text', text: fmt(n), font: { size: 18, weight: 'bold' }, textColor: TEXT, maxLines: 1, minScale: 0.7 },
+        { type: 'text', text: ok ? (flag || String(s.pct || '')) : '', font: { size: 10, weight: 'medium' }, textColor: flag ? SUB : color, maxLines: 1, minScale: 0.8 },
+        { type: 'spacer' },
+      ],
+    };
+  }
+
+  // 大号与银行同构：标题行（名称+状态+时间 + 右侧涨跌额）、数值行（最新 + 右侧涨跌幅）
+  const at = s && s.at ? String(s.at).slice(11, 16) || String(s.at) : '';
   return {
-    type: 'stack', direction: 'row', alignItems: 'center', gap: big ? 8 : 5,
+    type: 'stack', direction: 'column', gap: 3,
     children: [
       {
-        type: 'text', text: (big ? '上海金 Au99.99' : '沪金') + (big ? flag : ''),
-        font: { size: big ? 13 : 11, weight: 'medium' }, textColor: SUB, maxLines: 1, minScale: 0.8,
+        type: 'stack', direction: 'row', alignItems: 'center', gap: 6,
+        children: [
+          { type: 'text', text: '上海金 Au99.99' + flag, font: { size: 13, weight: 'medium' }, textColor: SUB, maxLines: 1, minScale: 0.8 },
+          ...(at ? [{ type: 'text', text: at, font: { size: 10, weight: 'medium' }, textColor: SUB, maxLines: 1 }] : []),
+          { type: 'spacer' },
+          { type: 'text', text: '元/克', font: { size: 9, weight: 'medium' }, textColor: SUB, maxLines: 1 },
+        ],
       },
-      { type: 'text', text: fmt(n), font: { size: big ? 24 : 16, weight: 'bold' }, textColor: TEXT, maxLines: 1, minScale: 0.7 },
-      { type: 'text', text: ok ? note : '', font: { size: big ? 11 : 10, weight: 'medium' }, textColor: noteColor, maxLines: 1, minScale: 0.8 },
-      { type: 'spacer' },
-      ...(big && s && s.at ? [{
-        type: 'text', text: String(s.at).slice(11, 16) || String(s.at),
-        font: { size: 10, weight: 'medium' }, textColor: SUB, maxLines: 1,
-      }] : []),
+      {
+        type: 'stack', direction: 'row', alignItems: 'center',
+        children: [
+          {
+            type: 'stack', direction: 'row', alignItems: 'center', gap: 4,
+            children: [
+              { type: 'text', text: '最新', font: { size: 11, weight: 'medium' }, textColor: SUB, maxLines: 1 },
+              { type: 'text', text: fmt(n), font: { size: 24, weight: 'bold' }, textColor: TEXT, maxLines: 1, minScale: 0.7 },
+            ],
+          },
+          { type: 'spacer' },
+          { type: 'text', text: ok ? String(s.pct || '') : '', font: { size: 14, weight: 'semibold' }, textColor: color, maxLines: 1 },
+        ],
+      },
     ],
   };
 }

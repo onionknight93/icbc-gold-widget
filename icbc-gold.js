@@ -151,7 +151,7 @@ function sgeRow(s, big) {
     };
   }
 
-  // 大号与银行同构：标题行（名称+状态+时间 + 右侧涨跌额）、数值行（最新 + 右侧涨跌幅）
+  // 大号与银行同构：标题行（名称+状态+时间 + 右侧单位）、数值行（最新 + 右侧涨跌幅）
   const at = s && s.at ? String(s.at).slice(11, 16) || String(s.at) : '';
   return {
     type: 'stack', direction: 'column', gap: 3,

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fetch ICBC 如意金 / CCB 易存金 and SGE Au99.99 spot into a small JSON snapshot.
+"""Fetch ICBC 如意金 / CCB 易存金 and Shanghai spot gold into a small JSON snapshot.
 
 Run from cron. Writes atomically; on failure keeps the previous value per source.
 """
@@ -92,7 +92,7 @@ def sge():
     hh, mm = (int(x) for x in cells[7].split(":")[:2])
     # 表里只有时分秒；比当前时刻晚就是昨天的（夜盘跨零点）
     day = now.date() if (hh, mm) <= (now.hour, now.minute) else now.date() - datetime.timedelta(days=1)
-    return {"name": "上海金Au99.99", "last": last, "chg": float(cells[2]), "pct": cells[3],
+    return {"name": "上海现货黄金", "last": last, "chg": float(cells[2]), "pct": cells[3],
             "at": f"{day} {hh:02d}:{mm:02d}"}
 
 

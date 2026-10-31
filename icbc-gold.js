@@ -3,12 +3,12 @@
 Version : v2.5.0
 平台: Egern
 风格: Robinhood（扁平、无卡片、大数字 + 小字）
-功能: 工行如意金 / 建行易存金 买入卖出价 + 价差；上金所 Au99.99 现货
+功能: 工行如意金 / 建行易存金 买入卖出价 + 价差；上海现货黄金
 数据: VPS 交易时段每 5 分钟抓一次 → onionknight93/icbc-gold-widget/data/gold.json
 说明: 两家银行都不支持 RFC 5746，iOS 无法直连，所以读快照
       不存任何高低/历史，快照只有当前买卖价
       工行 09:10-22:30（自然日）、建行 09:00-16:30（周一至周五）
-      上海金 09:00-11:30 / 13:30-15:30 / 20:00-次日 02:30（周一至周五）
+      上海现货黄金 09:00-11:30 / 13:30-15:30 / 20:00-次日 02:30（周一至周五）
 **********************************/
 const REPO = 'onionknight93/icbc-gold-widget';
 const DATA = `https://raw.githubusercontent.com/${REPO}/data/gold.json`;
@@ -73,7 +73,7 @@ export default async function (ctx) {
     children: [
       ...BANKS.map(([k, label]) => bankRow(d[k] || {}, label, big)),
       sgeRow(d.sge, big),
-      // 大号的单位已并到上海金那行右侧，省一行高度给第三块两行布局
+      // 大号的单位已并到上海现货黄金那行右侧，省一行高度给第三块两行布局
       ...(big ? [] : [
         { type: 'spacer' },
         {
@@ -159,7 +159,7 @@ function sgeRow(s, big) {
       {
         type: 'stack', direction: 'row', alignItems: 'center', gap: 6,
         children: [
-          { type: 'text', text: '上海金 Au99.99' + flag, font: { size: 13, weight: 'medium' }, textColor: SUB, maxLines: 1, minScale: 0.8 },
+          { type: 'text', text: '上海现货黄金' + flag, font: { size: 13, weight: 'medium' }, textColor: SUB, maxLines: 1, minScale: 0.8 },
           ...(at ? [{ type: 'text', text: at, font: { size: 10, weight: 'medium' }, textColor: SUB, maxLines: 1 }] : []),
           { type: 'spacer' },
           { type: 'text', text: '元/克', font: { size: 9, weight: 'medium' }, textColor: SUB, maxLines: 1 },

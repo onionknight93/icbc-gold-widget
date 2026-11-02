@@ -1,6 +1,6 @@
 /******************************
 脚本名称: GoldBuySell
-Version : v2.8.0
+Version : v2.8.1
 平台: Egern
 风格: Robinhood（扁平、无卡片、大数字 + 小字）
 功能: 工行如意金 / 建行易存金 买入卖出价 + 价差；上海现货黄金；国际现货黄金（四行单列）
@@ -88,8 +88,8 @@ export default async function (ctx) {
 }
 
 // 数字列定宽：小号 54/42，中/大号 82/82，右侧备注槽 46
-const COLS = { small: [54, 42], big: [82, 82] };
-const ANNO = 46;
+const COLS = { small: [56, 44], big: [94, 76] };
+const ANNO = 40;
 
 async function liveXau(ctx) {
   try {
@@ -129,16 +129,19 @@ function num(text, size, weight, color) {
 function bankLine(b, label, big) {
   const [wa, wb] = big ? COLS.big : COLS.small;
   const spread = b.buy > 0 && b.sell > 0 ? b.buy - b.sell : null;
-  const vs = big ? 22 : 14;
-  const flag = b.stale ? (big ? '（旧）' : '旧') : b.closed ? (big ? ' 收盘' : '收盘') : '';
+  // 数字统一一个字号：格宽按最长的 $3,899.53 留，四行都不会被 minScale 压小
+  const vs = big ? 20 : 12;
+  const flag = b.stale ? '旧' : b.closed ? '收盘' : '';
   const at = big && b.at ? String(b.at).slice(11, 16) : '';
+  // 大字版标签栏只有 34pt，状态顶掉时间位，别撑爆类目
+  const slot = big && flag ? flag : at;
   const tag = (t) => ({ type: 'text', text: t, font: { size: big ? 10 : 9, weight: 'medium' }, textColor: SUB, maxLines: 1 });
 
   return {
     type: 'stack', direction: 'row', alignItems: 'center', gap: big ? 6 : 4,
     children: [
-      { type: 'text', text: label.slice(0, 2) + flag, font: { size: big ? 15 : 11, weight: 'semibold' }, textColor: NAME, maxLines: 1, minScale: 0.8, flex: 1 },
-      ...(at ? [{ type: 'text', text: at, font: { size: 10, weight: 'medium' }, textColor: SUB, maxLines: 1 }] : []),
+      { type: 'text', text: label.slice(0, 2) + (big ? '' : flag), font: { size: big ? 15 : 11, weight: 'semibold' }, textColor: NAME, maxLines: 1, minScale: 0.8, flex: 1 },
+      ...(slot ? [{ type: 'text', text: slot, font: { size: 10, weight: 'medium' }, textColor: SUB, maxLines: 1 }] : []),
       cell(wa, [tag('买'), num(fmt(b.buy), vs, 'bold', TEXT)]),
       cell(wb, [tag('卖'), num(fmt(b.sell), vs, 'bold', TEXT)]),
       ...(big ? [cell(ANNO, [{ type: 'text', text: `价差 ${one(spread)}`, font: { size: 9, weight: 'medium' }, textColor: SUB, maxLines: 1, minScale: 0.7 }])] : []),
@@ -150,15 +153,17 @@ function spotLine(label, q, prefix, withPct, big, anno = '') {
   const [wa, wb] = big ? COLS.big : COLS.small;
   const n = Number(q && q.last);
   const ok = Number.isFinite(n) && n > 0;
-  const flag = q && (q.stale ? (big ? '（旧）' : '旧') : q.closed ? (big ? ' 收盘' : '收盘') : '');
+  const vs = big ? 20 : 12;
+  const flag = q && (q.stale ? '旧' : q.closed ? '收盘' : '');
   const at = big && q && q.at ? String(q.at).slice(11, 16) : '';
+  const slot = big && flag ? flag : at;
 
   return {
     type: 'stack', direction: 'row', alignItems: 'center', gap: big ? 6 : 4,
     children: [
-      { type: 'text', text: label + flag, font: { size: big ? 15 : 11, weight: 'semibold' }, textColor: NAME, maxLines: 1, minScale: 0.8, flex: 1 },
-      ...(at ? [{ type: 'text', text: at, font: { size: 10, weight: 'medium' }, textColor: SUB, maxLines: 1 }] : []),
-      cell(wa, [num(ok ? prefix + money(n) : '--', big ? 22 : 14, 'bold', TEXT)]),
+      { type: 'text', text: label + (big ? '' : flag), font: { size: big ? 15 : 11, weight: 'semibold' }, textColor: NAME, maxLines: 1, minScale: 0.8, flex: 1 },
+      ...(slot ? [{ type: 'text', text: slot, font: { size: 10, weight: 'medium' }, textColor: SUB, maxLines: 1 }] : []),
+      cell(wa, [num(ok ? prefix + money(n) : '--', vs, 'bold', TEXT)]),
       cell(wb, [withPct && ok && q.pct ? num(String(q.pct), big ? 13 : 10, 'semibold', pctColor(q)) : { type: 'text', text: '' }]),
       ...(big ? [cell(ANNO, [{ type: 'text', text: anno, font: { size: 9, weight: 'medium' }, textColor: SUB, maxLines: 1, minScale: 0.7 }])] : []),
     ],

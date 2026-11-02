@@ -1,6 +1,6 @@
 /******************************
 脚本名称: GoldBuySell
-Version : v2.8.1
+Version : v2.8.2
 平台: Egern
 风格: Robinhood（扁平、无卡片、大数字 + 小字）
 功能: 工行如意金 / 建行易存金 买入卖出价 + 价差；上海现货黄金；国际现货黄金（四行单列）
@@ -87,9 +87,8 @@ export default async function (ctx) {
   };
 }
 
-// 数字列定宽：小号 54/42，中/大号 82/82，右侧备注槽 46
+// 数字列定宽：小号 56/44，中/大号 94/76
 const COLS = { small: [56, 44], big: [94, 76] };
-const ANNO = 40;
 
 async function liveXau(ctx) {
   try {
@@ -118,6 +117,19 @@ function stamp() {
   return `${t.getFullYear()}-${p(t.getMonth() + 1)}-${p(t.getDate())} ${p(t.getHours())}:${p(t.getMinutes())}`;
 }
 
+// 类目 + 小字（时间/状态/价差/单位）挤在一组，别各占一列
+function head(label, small, extra, big) {
+  const tiny = (t) => ({ type: 'text', text: t, font: { size: 9, weight: 'medium' }, textColor: SUB, maxLines: 1, minScale: 0.8 });
+  return {
+    type: 'stack', direction: 'row', alignItems: 'center', gap: 4, flex: 1,
+    children: [
+      { type: 'text', text: label, font: { size: big ? 15 : 11, weight: 'semibold' }, textColor: NAME, maxLines: 1, minScale: 0.8 },
+      ...(small ? [tiny(small)] : []),
+      ...(extra ? [tiny(extra)] : []),
+    ],
+  };
+}
+
 function cell(w, nodes) {
   return { type: 'stack', direction: 'row', alignItems: 'center', width: w, children: [{ type: 'spacer' }, ...nodes] };
 }
@@ -140,11 +152,9 @@ function bankLine(b, label, big) {
   return {
     type: 'stack', direction: 'row', alignItems: 'center', gap: big ? 6 : 4,
     children: [
-      { type: 'text', text: label.slice(0, 2) + (big ? '' : flag), font: { size: big ? 15 : 11, weight: 'semibold' }, textColor: NAME, maxLines: 1, minScale: 0.8, flex: 1 },
-      ...(slot ? [{ type: 'text', text: slot, font: { size: 10, weight: 'medium' }, textColor: SUB, maxLines: 1 }] : []),
+      head(label.slice(0, 2), big ? slot : flag, big ? `价差 ${one(spread)}` : '', big),
       cell(wa, [tag('买'), num(fmt(b.buy), vs, 'bold', TEXT)]),
       cell(wb, [tag('卖'), num(fmt(b.sell), vs, 'bold', TEXT)]),
-      ...(big ? [cell(ANNO, [{ type: 'text', text: `价差 ${one(spread)}`, font: { size: 9, weight: 'medium' }, textColor: SUB, maxLines: 1, minScale: 0.7 }])] : []),
     ],
   };
 }
@@ -161,11 +171,9 @@ function spotLine(label, q, prefix, withPct, big, anno = '') {
   return {
     type: 'stack', direction: 'row', alignItems: 'center', gap: big ? 6 : 4,
     children: [
-      { type: 'text', text: label + (big ? '' : flag), font: { size: big ? 15 : 11, weight: 'semibold' }, textColor: NAME, maxLines: 1, minScale: 0.8, flex: 1 },
-      ...(slot ? [{ type: 'text', text: slot, font: { size: 10, weight: 'medium' }, textColor: SUB, maxLines: 1 }] : []),
+      head(label, big ? slot : flag, big ? anno : '', big),
       cell(wa, [num(ok ? prefix + money(n) : '--', vs, 'bold', TEXT)]),
       cell(wb, [withPct && ok && q.pct ? num(String(q.pct), big ? 13 : 10, 'semibold', pctColor(q)) : { type: 'text', text: '' }]),
-      ...(big ? [cell(ANNO, [{ type: 'text', text: anno, font: { size: 9, weight: 'medium' }, textColor: SUB, maxLines: 1, minScale: 0.7 }])] : []),
     ],
   };
 }

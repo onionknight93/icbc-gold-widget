@@ -1,6 +1,6 @@
 /******************************
 脚本名称: GoldBuySell
-Version : v2.9.1
+Version : v2.10.0
 平台: Egern
 风格: Robinhood（扁平、无卡片、大数字 + 小字）
 功能: 工行如意金 / 建行易存金 买入卖出价 + 价差；上海现货黄金；国际现货黄金（四行单列）
@@ -46,7 +46,7 @@ export default async function (ctx) {
   }
 
   const big = ctx.widgetFamily !== 'systemSmall';
-  const pad = big ? 14 : 12;
+  const pad = big ? 10 : 12;
   const xau = (await liveXau(ctx)) || d.xau || {};
 
   if (ctx.widgetFamily === 'accessoryInline') {
@@ -76,7 +76,7 @@ export default async function (ctx) {
   }
 
   return {
-    type: 'widget', url: PAGE, padding: pad, gap: big ? 8 : 6, refreshAfter: refreshAfter(),
+    type: 'widget', url: PAGE, padding: pad, gap: big ? 3 : 6, refreshAfter: refreshAfter(),
     backgroundColor: BG,
     // 四个品种一行一个，右边两列固定宽度，四行数字才对得齐
     children: [
@@ -122,6 +122,10 @@ function labelText(text, big) {
   return { type: 'text', text, font: { size: big ? 15 : 11, weight: 'semibold' }, textColor: NAME, maxLines: 1, minScale: 0.8, flex: 1 };
 }
 
+function sub(t) {
+  return { type: 'text', text: t || '', font: { size: 9, weight: 'medium' }, textColor: SUB, maxLines: 1, minScale: 0.8 };
+}
+
 function tiny(t) {
   return t ? [{ type: 'text', text: t, font: { size: 9, weight: 'medium' }, textColor: SUB, maxLines: 1, minScale: 0.8 }] : [];
 }
@@ -137,22 +141,44 @@ function num(text, size, weight, color) {
 function bankLine(b, label, big) {
   const [wa, wb] = big ? COLS.big : COLS.small;
   const spread = b.buy > 0 && b.sell > 0 ? b.buy - b.sell : null;
-  // 数字统一一个字号：格宽按最长的 $3,899.53 留，四行都不会被 minScale 压小
-  const vs = big ? 20 : 12;
   const flag = b.stale ? '旧' : b.closed ? '收盘' : '';
-  const at = big && b.at ? String(b.at).slice(11, 16) : '';
-  // 大字版标签栏只有 34pt，状态顶掉时间位，别撑爆类目
-  const slot = big && flag ? flag : at;
-  const tag = (t) => ({ type: 'text', text: t, font: { size: big ? 10 : 9, weight: 'medium' }, textColor: SUB, maxLines: 1 });
+  const at = b.at ? String(b.at).slice(11, 16) : '';
+  const tag = (t) => ({ type: 'text', text: t, font: { size: 9, weight: 'medium' }, textColor: SUB, maxLines: 1 });
 
+  if (!big) {
+    return {
+      type: 'stack', direction: 'row', alignItems: 'center', gap: 4,
+      children: [
+        labelText(label.slice(0, 2) + flag, big),
+        cell(wa, [tag('买'), num(fmt(b.buy), 12, 'semibold', TEXT)]),
+        cell(wb, [tag('卖'), num(fmt(b.sell), 12, 'semibold', TEXT)]),
+        { type: 'spacer', length: 0 },
+      ],
+    };
+  }
+
+  // 两行：上行类目 + 买卖价，下行时间（左）和价差（右）
   return {
-    type: 'stack', direction: 'row', alignItems: 'center', gap: big ? 6 : 4,
+    type: 'stack', direction: 'column', gap: 1,
     children: [
-      labelText(label.slice(0, 2) + (big ? '' : flag), big),
-      ...(big ? [...tiny(slot), ...tiny(`价差 ${one(spread)}`)] : []),
-      cell(wa, [tag('买'), num(fmt(b.buy), vs, 'semibold', TEXT)]),
-      cell(wb, [tag('卖'), num(fmt(b.sell), vs, 'semibold', TEXT)]),
-      { type: 'spacer', length: big ? 10 : 0 },
+      {
+        type: 'stack', direction: 'row', alignItems: 'center', gap: 4,
+        children: [
+          labelText(label.slice(0, 2), big),
+          cell(wa, [tag('买'), num(fmt(b.buy), 16, 'semibold', TEXT)]),
+          cell(wb, [tag('卖'), num(fmt(b.sell), 16, 'semibold', TEXT)]),
+          { type: 'spacer', length: 10 },
+        ],
+      },
+      {
+        type: 'stack', direction: 'row', alignItems: 'center',
+        children: [
+          sub([at, flag].filter(Boolean).join(' ')),
+          { type: 'spacer' },
+          sub(`价差 ${one(spread)}`),
+          { type: 'spacer', length: 10 },
+        ],
+      },
     ],
   };
 }
@@ -161,19 +187,42 @@ function spotLine(label, q, prefix, withPct, big, anno = '') {
   const [wa, wb] = big ? COLS.big : COLS.small;
   const n = Number(q && q.last);
   const ok = Number.isFinite(n) && n > 0;
-  const vs = big ? 20 : 12;
   const flag = q && (q.stale ? '旧' : q.closed ? '收盘' : '');
-  const at = big && q && q.at ? String(q.at).slice(11, 16) : '';
-  const slot = big && flag ? flag : at;
+  const at = q && q.at ? String(q.at).slice(11, 16) : '';
 
+  if (!big) {
+    return {
+      type: 'stack', direction: 'row', alignItems: 'center', gap: 4,
+      children: [
+        labelText(label + (flag || ''), big),
+        cell(wa, [num(ok ? prefix + money(n) : '--', 12, 'semibold', TEXT)]),
+        cell(wb, [withPct && ok && q.pct ? pill(q, big) : { type: 'text', text: '' }]),
+      ],
+    };
+  }
+
+  // 两行：上行类目 + 现价 + 涨跌幅胶囊，下行时间（左）和单位（右）
   return {
-    type: 'stack', direction: 'row', alignItems: 'center', gap: big ? 6 : 4,
+    type: 'stack', direction: 'column', gap: 1,
     children: [
-      labelText(label + (big ? '' : flag), big),
-      ...(big ? [...tiny(slot), ...tiny(anno)] : []),
-      cell(wa, [num(ok ? prefix + money(n) : '--', vs, 'semibold', TEXT)]),
-      cell(wb, [withPct && ok && q.pct ? pill(q, big) : { type: 'text', text: '' }]),
-      { type: 'spacer', length: big ? 10 : 0 },
+      {
+        type: 'stack', direction: 'row', alignItems: 'center', gap: 4,
+        children: [
+          labelText(label, big),
+          cell(wa, [num(ok ? prefix + money(n) : '--', 16, 'semibold', TEXT)]),
+          cell(wb, [withPct && ok && q.pct ? pill(q, big) : { type: 'text', text: '' }]),
+          { type: 'spacer', length: 10 },
+        ],
+      },
+      {
+        type: 'stack', direction: 'row', alignItems: 'center',
+        children: [
+          sub([at, flag].filter(Boolean).join(' ')),
+          { type: 'spacer' },
+          sub(anno),
+          { type: 'spacer', length: 10 },
+        ],
+      },
     ],
   };
 }
@@ -185,14 +234,14 @@ function pill(q, big) {
   const flat = !Number.isFinite(chg) || chg === 0;
   const fg = flat ? SUB : up ? '#D70015' : '#008A3E';
   return {
-    type: 'stack', width: big ? 58 : 42, height: big ? 20 : 16,
+    type: 'stack', width: big ? 54 : 42, height: big ? 14 : 16,
     alignItems: 'center', justifyContent: 'center',
     borderRadius: big ? 6 : 4,
     backgroundColor: flat ? '#8E8E9312' : up ? '#FF3B3015' : '#00A65015',
     borderWidth: 1,
     borderColor: flat ? '#8E8E9340' : up ? '#FF3B3050' : '#00A65050',
     children: [{
-      type: 'text', text: String((q && q.pct) || ''), font: { size: big ? 11 : 9, weight: 'semibold' },
+      type: 'text', text: String((q && q.pct) || ''), font: { size: big ? 9 : 9, weight: 'semibold' },
       textColor: fg, maxLines: 1, minScale: 0.6, textAlign: 'center',
     }],
   };

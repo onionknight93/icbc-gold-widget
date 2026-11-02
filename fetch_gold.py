@@ -24,7 +24,9 @@ XAU = "https://push2his.eastmoney.com"
 XAU_KLINE = ("/api/qt/stock/kline/get?secid=122.XAU&klt=5&fqt=1&lmt=1&end=20500101"
              "&fields1=f1&fields2=f51,f53")
 # kline 有每 IP 的调用配额，超了直接断连接；同源的分时接口价格同口径，配额也宽，拿它兜底
-XAU_TREND = "/api/qt/stock/trends2/get?secid=122.XAU&ndays=1&fields1=f1&fields2=f51,f53"
+# fields1 必须给全，只给 f1 时返回里没有 preClose
+XAU_TREND = ("/api/qt/stock/trends2/get?secid=122.XAU&ndays=1"
+             "&fields1=f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13&fields2=f51,f53")
 
 # 交易时段（含收盘那一分钟）+ 交易天数；end < start 表示跨零点，days 算起始日
 WINDOWS = {

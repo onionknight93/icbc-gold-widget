@@ -42,18 +42,21 @@ assert(inline.type === 'widget' && /\d+\.\d\d/.test(JSON.stringify(inline)), 'in
 const failed = await widget(badCtx('systemSmall'));
 assert(failed.type === 'widget' && JSON.stringify(failed).includes('读取失败'), 'failure card');
 
-// Both banks, buy+sell and spread — no hi/lo, no 积存金, no stored history.
+// Both banks, buy+sell — no hi/lo, no 积存金, no stored history; four rows, one column.
 for (const family of ['systemSmall', 'systemMedium', 'systemLarge']) {
   const flat = JSON.stringify(await widget(okCtx(family)));
   for (const v of ['880.45', '860.01', '880.10', '860.60']) assert(flat.includes(v), family + ' ' + v);
-  assert(flat.includes('如意金') && flat.includes('易存金'), family + ' banks');
-  assert(flat.includes('买') && flat.includes('卖'), family + ' columns');
+  assert(flat.includes('工行') && flat.includes('建行'), family + ' banks');
+  assert(flat.includes('买') && flat.includes('卖'), family + ' buy/sell');
   assert(!flat.includes('积存金'), family + ' no 积存金');
-  assert(flat.includes('价差 20.4') && flat.includes('价差 19.5'), family + ' spreads');
-  assert(flat.includes('12:20') && flat.includes('12:19'), family + ' per-bank times');
   assert(flat.includes('833.00') && flat.includes('-2.55%'), family + ' sge price');
   assert(flat.includes('3,907.55') && flat.includes('国际'), family + ' xau price');
   assert(!/高|低/.test(flat), family + ' no sampled ranges');
+  // 一列四行：小号省掉价差和时间，给数字腾宽度
+  if (family !== 'systemSmall') {
+    assert(flat.includes('价差 20.4') && flat.includes('价差 19.5'), family + ' spreads');
+    assert(flat.includes('12:20') && flat.includes('12:19'), family + ' per-bank times');
+  }
 }
 
 // 国际现货行 survives a snapshot written before the source existed.
@@ -82,7 +85,7 @@ for (const family of ['systemSmall', 'systemMedium', 'systemLarge']) {
 
 // Stale bank keeps its price but says so; a closed bank says 收盘.
 const stale = await widget(okCtx('systemSmall', { ...snap, ccb: { ...snap.ccb, stale: true } }));
-assert(JSON.stringify(stale).includes('（旧）') && JSON.stringify(stale).includes('860.60'), 'stale row');
+assert(JSON.stringify(stale).includes('旧') && JSON.stringify(stale).includes('860.60'), 'stale row');
 const closed = await widget(okCtx('systemSmall', { ...snap, ccb: { ...snap.ccb, closed: true } }));
 assert(JSON.stringify(closed).includes('收盘') && JSON.stringify(closed).includes('860.60'), 'closed row');
 

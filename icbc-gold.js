@@ -73,112 +73,56 @@ export default async function (ctx) {
   return {
     type: 'widget', url: PAGE, padding: pad, gap: big ? 8 : 6, refreshAfter: refreshAfter(),
     backgroundColor: BG,
+    // 四个品种各占一行一列，字号按尺寸收
     children: [
-      ...BANKS.map(([k, label]) => bankRow(d[k] || {}, label, big)),
-      // 小号两行放不下带单位的第四块，改成「沪金(元/克) / 国际($)」两行，单位并进标签
-      ...(big
-        ? [spotCols(d.sge, d.xau)]
-        : [spotLine('沪金', d.sge, '', true), spotLine('国际', d.xau, '$', false)]),
+      ...BANKS.map(([k, label]) => bankLine(d[k] || {}, label, big)),
+      spotLine('沪金 元/克', d.sge, '', true, big),
+      spotLine('国际', d.xau, '$', false, big),
     ],
   };
 }
 
-function bankRow(b, label, big) {
+function bankLine(b, label, big) {
   const spread = b.buy > 0 && b.sell > 0 ? b.buy - b.sell : null;
-  const size = big ? 24 : 18;
-
-  const header = {
-    type: 'stack', direction: 'row', alignItems: 'center', gap: 6,
-    children: [
-      {
-        type: 'text', text: (b.name || label) + (b.stale ? '（旧）' : b.closed ? ' 收盘' : ''),
-        font: { size: big ? 13 : 11, weight: 'medium' }, textColor: SUB, maxLines: 1, minScale: 0.8,
-      },
-      ...(b.at ? [{
-        type: 'text', text: String(b.at).slice(11, 16) || String(b.at),
-        font: { size: big ? 10 : 9, weight: 'medium' }, textColor: SUB, maxLines: 1, minScale: 0.8,
-      }] : []),
-      { type: 'spacer' },
-      {
-        type: 'text', text: `价差 ${one(spread)}`,
-        font: { size: big ? 10 : 9, weight: 'medium' }, textColor: SUB, maxLines: 1, minScale: 0.8,
-      },
-    ],
-  };
+  const vs = big ? 20 : 13;
+  const flag = b.stale ? (big ? '（旧）' : '旧') : b.closed ? (big ? ' 收盘' : '收盘') : '';
+  const at = big && b.at ? String(b.at).slice(11, 16) : '';
 
   const side = (tag, v) => ({
-    type: 'stack', direction: 'row', alignItems: 'center', gap: 4,
+    type: 'stack', direction: 'row', alignItems: 'center', gap: 3,
     children: [
-      { type: 'text', text: tag, font: { size: 11, weight: 'medium' }, textColor: SUB, maxLines: 1 },
-      { type: 'text', text: fmt(v), font: { size, weight: 'bold' }, textColor: TEXT, maxLines: 1, minScale: 0.7 },
+      { type: 'text', text: tag, font: { size: big ? 10 : 9, weight: 'medium' }, textColor: SUB, maxLines: 1 },
+      { type: 'text', text: fmt(v), font: { size: vs, weight: 'bold' }, textColor: TEXT, maxLines: 1, minScale: 0.7 },
     ],
   });
 
   return {
-    type: 'stack', direction: 'column', gap: big ? 3 : 1,
+    type: 'stack', direction: 'row', alignItems: 'center', gap: big ? 8 : 4,
     children: [
-      header,
-      {
-        type: 'stack', direction: 'row', alignItems: 'center',
-        children: [side('买', b.buy), { type: 'spacer' }, side('卖', b.sell)],
-      },
-    ],
-  };
-}
-
-// medium/large：沪金与国际现货并排，两块共用一个两行高度，不额外占行
-function spotCols(s, x) {
-  return {
-    type: 'stack', direction: 'row', alignItems: 'start', gap: 8,
-    children: [
-      spotCol(s, '沪金', '元/克', ''),
+      { type: 'text', text: label.slice(0, 2) + flag, font: { size: big ? 13 : 10, weight: 'medium' }, textColor: SUB, maxLines: 1, minScale: 0.8 },
+      ...(at ? [{ type: 'text', text: at, font: { size: 10, weight: 'medium' }, textColor: SUB, maxLines: 1 }] : []),
       { type: 'spacer' },
-      spotCol(x, '国际现货', '美元/盎司', '$'),
+      side('买', b.buy),
+      side('卖', b.sell),
+      ...(big ? [{ type: 'text', text: `价差 ${one(spread)}`, font: { size: 9, weight: 'medium' }, textColor: SUB, maxLines: 1, minScale: 0.8 }] : []),
     ],
   };
 }
 
-function spotCol(q, label, unit, prefix) {
+function spotLine(label, q, prefix, withPct, big) {
   const n = Number(q && q.last);
   const ok = Number.isFinite(n) && n > 0;
-  const flag = q && (q.stale ? '（旧）' : q.closed ? ' 收盘' : '');
-  const at = q && q.at ? String(q.at).slice(11, 16) : '';
+  const flag = q && (q.stale ? (big ? '（旧）' : '旧') : q.closed ? (big ? ' 收盘' : '收盘') : '');
+  const at = big && q && q.at ? String(q.at).slice(11, 16) : '';
 
   return {
-    type: 'stack', direction: 'column', gap: 3,
+    type: 'stack', direction: 'row', alignItems: 'center', gap: big ? 8 : 4,
     children: [
-      {
-        type: 'stack', direction: 'row', alignItems: 'center', gap: 6,
-        children: [
-          { type: 'text', text: label + flag, font: { size: 13, weight: 'medium' }, textColor: SUB, maxLines: 1, minScale: 0.8 },
-          ...(at ? [{ type: 'text', text: at, font: { size: 10, weight: 'medium' }, textColor: SUB, maxLines: 1 }] : []),
-          { type: 'text', text: unit, font: { size: 9, weight: 'medium' }, textColor: SUB, maxLines: 1 },
-        ],
-      },
-      {
-        type: 'stack', direction: 'row', alignItems: 'center', gap: 4,
-        children: [
-          { type: 'text', text: ok ? prefix + money(n) : '--', font: { size: 22, weight: 'bold' }, textColor: TEXT, maxLines: 1, minScale: 0.7 },
-          ...(q && q.pct ? [{ type: 'text', text: String(q.pct), font: { size: 12, weight: 'semibold' }, textColor: pctColor(q), maxLines: 1 }] : []),
-        ],
-      },
-    ],
-  };
-}
-
-// 小号一行一个报价，单位省略：沪金即元/克，国际用 $ 前缀
-function spotLine(label, q, prefix, withPct) {
-  const n = Number(q && q.last);
-  const ok = Number.isFinite(n) && n > 0;
-  const flag = q && (q.stale ? '旧' : q.closed ? '收盘' : '');
-
-  return {
-    type: 'stack', direction: 'row', alignItems: 'center', gap: 5,
-    children: [
-      { type: 'text', text: label, font: { size: 10, weight: 'medium' }, textColor: SUB, maxLines: 1, minScale: 0.8 },
-      { type: 'text', text: ok ? prefix + money(n) : '--', font: { size: 15, weight: 'bold' }, textColor: TEXT, maxLines: 1, minScale: 0.7 },
-      { type: 'text', text: ok ? (flag || (withPct ? String(q.pct || '') : '')) : '', font: { size: 9, weight: 'medium' }, textColor: flag ? SUB : pctColor(q), maxLines: 1, minScale: 0.8 },
+      { type: 'text', text: label + flag, font: { size: big ? 13 : 10, weight: 'medium' }, textColor: SUB, maxLines: 1, minScale: 0.8 },
+      ...(at ? [{ type: 'text', text: at, font: { size: 10, weight: 'medium' }, textColor: SUB, maxLines: 1 }] : []),
       { type: 'spacer' },
+      { type: 'text', text: ok ? prefix + money(n) : '--', font: { size: big ? 20 : 13, weight: 'bold' }, textColor: TEXT, maxLines: 1, minScale: 0.7 },
+      { type: 'text', text: ok ? (withPct ? String(q.pct || '') : '') : '', font: { size: big ? 11 : 9, weight: 'medium' }, textColor: pctColor(q), maxLines: 1, minScale: 0.8 },
     ],
   };
 }

@@ -22,8 +22,9 @@ SGE = "https://quote.fx678.com/exchange/sge"
 # 东财 122.XAU = 国际现货黄金（黄金/美元，XAUUSD）。klt=5 取 5 分钟 K 线，lmt=1 只要最新一根。
 # push2his 有多个编号镜像；单主机被限流时换一个还能通，所以轮着试。
 XAU_HOSTS = ("push2his", "1.push2his", "2.push2his")
+# 只要时间和收盘价：字段带多了东财会 444（连接直接断），少字段反而稳定
 XAU_PATH = ("/api/qt/stock/kline/get?secid=122.XAU&klt=5&fqt=1&lmt=1&end=20500101"
-            "&fields1=f1,f2,f3,f4,f5,f6&fields2=f51,f52,f53,f54,f55,f56,f57,f58")
+            "&fields1=f1&fields2=f51,f53")
 
 # 交易时段（含收盘那一分钟）+ 交易天数；end < start 表示跨零点，days 算起始日
 WINDOWS = {
@@ -113,16 +114,17 @@ def xau():
             break
     else:
         raise RuntimeError("eastmoney XAU: no kline from any host")
-    bars = d["klines"]
-    # 时间,开,收,高,低,量,额,振幅
-    at, _open, close = bars[-1].split(",")[:3]
-    last, prev = float(close), float(d["preKPrice"])
-    if last <= 0 or prev <= 0:
+    # 时间,收盘
+    bar, close = d["klines"][-1].split(",")[:2]
+    last = float(close)
+    if last <= 0:
         raise RuntimeError("eastmoney XAU: bad price")
-    # 只取价，不算涨跌：122.XAU 的 preKPrice 会随窗口滑动，不是昨收，算出来会误导
-    q = {"name": "国际现货黄金", "last": last, "at": at}
+    # 只取价，不算涨跌：122.XAU 的 preKPrice 会随窗口滑动，不是昨收，算出来会误导。
+    # K 线时间是本根 bar 的结束时刻（会比抓取时刻超前最多 5 分钟），展示用抓取时间。
+    now = datetime.datetime.now()
+    q = {"name": "国际现货黄金", "last": last, "at": now.strftime("%Y-%m-%d %H:%M")}
     # 收盘 / 结算间隙接口照样返回最后一根 K 线，半小时没新 bar 就当没更新
-    if datetime.datetime.now() - datetime.datetime.strptime(at, "%Y-%m-%d %H:%M") > datetime.timedelta(minutes=30):
+    if now - datetime.datetime.strptime(bar, "%Y-%m-%d %H:%M") > datetime.timedelta(minutes=30):
         q["stale"] = True
     return q
 
@@ -217,15 +219,15 @@ if __name__ == "__main__":
         assert in_window("xau", at(31, 5, 1)) is False
         assert in_window("xau", datetime.datetime(2026, 11, 1, 12, 0)) is False  # 周日
 
-        # 东财 XAU K 线解析（不联网）：取最后一根收盘价，涨跌按 preKPrice
-        bars = [f"{datetime.datetime.now():%Y-%m-%d %H:%M},3901.0,3907.55,3908.0,3900.5,0,0.00,0.19"]
+        # 东财 XAU K 线解析（不联网）：取最后一根的收盘价
+        bars = [f"{datetime.datetime.now():%Y-%m-%d %H:%M},3907.55"]
         real_get = get
         def fake_get(url, ipv4=False):
-            return json.dumps({"data": {"preKPrice": 3900.0, "klines": bars}}).encode()
+            return json.dumps({"data": {"klines": bars}}).encode()
         get = fake_get
         try:
             q = xau()
-            assert q["last"] == 3907.55 and q["at"] == bars[0].split(",")[0], q
+            assert q["last"] == 3907.55 and q["at"] == f"{datetime.datetime.now():%Y-%m-%d %H:%M}", q
             assert "stale" not in q, q
         finally:
             get = real_get

@@ -19,12 +19,12 @@ CCB_EASY_STORE_ID = "291000001"  # 易存金「标准建行金」
 # ip138 的「上海黄金现货」只每日 20:00 刷一次，且海外 IP 会被 302 到 dnsdblookup.com；
 # 汇通网这张表是同一个上金所 Au99.99 合约，盘中随时更新，所以拿它做 5 分钟源。
 SGE = "https://quote.fx678.com/exchange/sge"
-# 东财 122.XAU = 国际现货黄金（黄金/美元，XAUUSD）。klt=5 取 5 分钟 K 线，lmt=1 只要最新一根。
-# push2his 有多个编号镜像；单主机被限流时换一个还能通，所以轮着试。
-XAU_HOSTS = ("push2his", "1.push2his", "2.push2his")
-# 只要时间和收盘价：字段带多了东财会 444（连接直接断），少字段反而稳定
-XAU_PATH = ("/api/qt/stock/kline/get?secid=122.XAU&klt=5&fqt=1&lmt=1&end=20500101"
-            "&fields1=f1&fields2=f51,f53")
+# 东财 122.XAU = 国际现货黄金（黄金/美元，XAUUSD）。只取时间和收盘价：字段带多了东财会 444。
+XAU = "https://push2his.eastmoney.com"
+XAU_KLINE = ("/api/qt/stock/kline/get?secid=122.XAU&klt=5&fqt=1&lmt=1&end=20500101"
+             "&fields1=f1&fields2=f51,f53")
+# kline 有每 IP 的调用配额，超了直接断连接；同源的分时接口价格同口径，配额也宽，拿它兜底
+XAU_TREND = "/api/qt/stock/trends2/get?secid=122.XAU&ndays=1&fields1=f1&fields2=f51,f53"
 
 # 交易时段（含收盘那一分钟）+ 交易天数；end < start 表示跨零点，days 算起始日
 WINDOWS = {
@@ -105,17 +105,23 @@ def sge():
 
 
 def xau():
-    for host in XAU_HOSTS:
+    err = None
+    row = None
+    for path in (XAU_KLINE, XAU_TREND):
         try:
-            d = json.loads(get(f"https://{host}.eastmoney.com{XAU_PATH}").decode("utf-8")).get("data") or {}
-        except Exception:
+            d = json.loads(get(XAU + path).decode("utf-8")).get("data") or {}
+        except Exception as exc:
+            err = f"{path.split('?')[0]}: {exc}"
             continue
-        if d.get("klines"):
+        rows = d.get("klines") or d.get("trends") or []
+        if rows:
+            row = rows[-1]
             break
-    else:
-        raise RuntimeError("eastmoney XAU: no kline from any host")
+        err = f"{path.split('?')[0]}: rc without rows"
+    if not row:
+        raise RuntimeError(f"eastmoney XAU: {err}")
     # 时间,收盘
-    bar, close = d["klines"][-1].split(",")[:2]
+    bar, close = row.split(",")[:2]
     last = float(close)
     if last <= 0:
         raise RuntimeError("eastmoney XAU: bad price")
@@ -123,7 +129,7 @@ def xau():
     # K 线时间是本根 bar 的结束时刻（会比抓取时刻超前最多 5 分钟），展示用抓取时间。
     now = datetime.datetime.now()
     q = {"name": "国际现货黄金", "last": last, "at": now.strftime("%Y-%m-%d %H:%M")}
-    # 收盘 / 结算间隙接口照样返回最后一根 K 线，半小时没新 bar 就当没更新
+    # 收盘 / 结算间隙接口照样返回最后一根 bar，半小时没新的就当没更新
     if now - datetime.datetime.strptime(bar, "%Y-%m-%d %H:%M") > datetime.timedelta(minutes=30):
         q["stale"] = True
     return q
@@ -229,6 +235,17 @@ if __name__ == "__main__":
             q = xau()
             assert q["last"] == 3907.55 and q["at"] == f"{datetime.datetime.now():%Y-%m-%d %H:%M}", q
             assert "stale" not in q, q
+        finally:
+            get = real_get
+
+        # kline 被限流时退到分时接口，价格照旧
+        def fake_trends(url, ipv4=False):
+            if "kline" in url:
+                raise RuntimeError("curl: (52) Empty reply from server")
+            return json.dumps({"data": {"trends": bars}}).encode()
+        get = fake_trends
+        try:
+            assert xau()["last"] == 3907.55
         finally:
             get = real_get
         print("selftest ok")

@@ -1,6 +1,6 @@
 /******************************
 脚本名称: GoldBuySell
-Version : v2.8.3
+Version : v2.9.0
 平台: Egern
 风格: Robinhood（扁平、无卡片、大数字 + 小字）
 功能: 工行如意金 / 建行易存金 买入卖出价 + 价差；上海现货黄金；国际现货黄金（四行单列）
@@ -155,8 +155,8 @@ function bankLine(b, label, big) {
     type: 'stack', direction: 'row', alignItems: 'center', gap: big ? 6 : 4,
     children: [
       head(label.slice(0, 2), big ? slot : flag, big ? `价差 ${one(spread)}` : '', big),
-      cell(wa, [tag('买'), num(fmt(b.buy), vs, 'bold', TEXT)]),
-      cell(wb, [tag('卖'), num(fmt(b.sell), vs, 'bold', TEXT)]),
+      cell(wa, [tag('买'), num(fmt(b.buy), vs, 'semibold', TEXT)]),
+      cell(wb, [tag('卖'), num(fmt(b.sell), vs, 'semibold', TEXT)]),
     ],
   };
 }
@@ -174,9 +174,28 @@ function spotLine(label, q, prefix, withPct, big, anno = '') {
     type: 'stack', direction: 'row', alignItems: 'center', gap: big ? 6 : 4,
     children: [
       head(label, big ? slot : flag, big ? anno : '', big),
-      cell(wa, [num(ok ? prefix + money(n) : '--', vs, 'bold', TEXT)]),
-      cell(wb, [withPct && ok && q.pct ? num(String(q.pct), big ? 13 : 10, 'semibold', pctColor(q)) : { type: 'text', text: '' }]),
+      cell(wa, [num(ok ? prefix + money(n) : '--', vs, 'semibold', TEXT)]),
+      cell(wb, [withPct && ok && q.pct ? pill(q, big) : { type: 'text', text: '' }]),
     ],
+  };
+}
+
+// 涨跌幅做成浅色底 + 描边的小胶囊（参考 Crypto_Widget 的写法）
+function pill(q, big) {
+  const chg = Number(q && q.chg);
+  const up = chg > 0;
+  const flat = !Number.isFinite(chg) || chg === 0;
+  const fg = flat ? SUB : up ? '#D70015' : '#008A3E';
+  return {
+    type: 'stack', width: big ? 58 : 42, height: big ? 20 : 16, alignItems: 'center',
+    borderRadius: big ? 6 : 4,
+    backgroundColor: flat ? '#8E8E9312' : up ? '#FF3B3015' : '#00A65015',
+    borderWidth: 1,
+    borderColor: flat ? '#8E8E9340' : up ? '#FF3B3050' : '#00A65050',
+    children: [{
+      type: 'text', text: String((q && q.pct) || ''), font: { size: big ? 11 : 9, weight: 'semibold' },
+      textColor: fg, maxLines: 1, minScale: 0.6, textAlign: 'center', flex: 1,
+    }],
   };
 }
 

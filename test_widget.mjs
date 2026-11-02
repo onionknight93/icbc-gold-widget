@@ -11,7 +11,7 @@ const snap = {
   icbc: { name: '工行如意金', buy: 880.45, sell: 860.01, at: '2026-10-23 12:20' },
   ccb: { name: '建行易存金', buy: 880.1, sell: 860.6, at: '2026-10-23 12:19' },
   sge: { name: '上海金Au99.99', last: 833.0, chg: -21.76, pct: '-2.55%', at: '2026-10-23 12:21' },
-  xau: { name: '国际现货黄金', last: 3907.55, at: '2026-10-23 12:21' },
+  xau: { name: '国际现货黄金', last: 3907.55, chg: 7.55, pct: '+0.19%', at: '2026-10-23 12:21' },
 };
 
 const okCtx = (family, data = snap) => ({
@@ -50,7 +50,7 @@ for (const family of ['systemSmall', 'systemMedium', 'systemLarge']) {
   assert(flat.includes('买') && flat.includes('卖'), family + ' buy/sell');
   assert(!flat.includes('积存金'), family + ' no 积存金');
   assert(flat.includes('833.00') && flat.includes('-2.55%'), family + ' sge price');
-  assert(flat.includes('3,907.55') && flat.includes('国际'), family + ' xau price');
+  assert(flat.includes('3,907.55') && flat.includes('国际') && flat.includes('+0.19%'), family + ' xau price+pct');
   assert(!/高|低/.test(flat), family + ' no sampled ranges');
   // 一列四行：小号省掉价差和时间，给数字腾宽度
   if (family !== 'systemSmall') {

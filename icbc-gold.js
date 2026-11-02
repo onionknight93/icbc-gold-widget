@@ -1,6 +1,6 @@
 /******************************
 脚本名称: GoldBuySell
-Version : v2.7.0
+Version : v2.7.1
 平台: Egern
 风格: Robinhood（扁平、无卡片、大数字 + 小字）
 功能: 工行如意金 / 建行易存金 买入卖出价 + 价差；上海现货黄金；国际现货黄金（四行单列）
@@ -73,43 +73,48 @@ export default async function (ctx) {
   return {
     type: 'widget', url: PAGE, padding: pad, gap: big ? 8 : 6, refreshAfter: refreshAfter(),
     backgroundColor: BG,
-    // 四个品种各占一行一列，字号按尺寸收
+    // 四个品种一行一个，右边两列固定宽度，四行数字才对得齐
     children: [
       ...BANKS.map(([k, label]) => bankLine(d[k] || {}, label, big)),
-      spotLine('沪金 元/克', d.sge, '', true, big),
-      spotLine('国际', d.xau, '$', false, big),
+      spotLine(big ? '沪金 元/克' : '沪金', d.sge, '', true, big),
+      spotLine('国际', d.xau, '$', true, big),
     ],
   };
 }
 
+// 两个数字列的宽度：小号要放下 7 位数的 $3907.08
+const COLS = { small: [52, 40], big: [78, 78] };
+
+function cell(w, nodes) {
+  return { type: 'stack', direction: 'row', alignItems: 'center', width: w, children: [{ type: 'spacer' }, ...nodes] };
+}
+
+function num(text, size, weight, color) {
+  return { type: 'text', text, font: { size, weight }, textColor: color, maxLines: 1, minScale: 0.6 };
+}
+
 function bankLine(b, label, big) {
+  const [wa, wb] = big ? COLS.big : COLS.small;
   const spread = b.buy > 0 && b.sell > 0 ? b.buy - b.sell : null;
   const vs = big ? 20 : 13;
   const flag = b.stale ? (big ? '（旧）' : '旧') : b.closed ? (big ? ' 收盘' : '收盘') : '';
   const at = big && b.at ? String(b.at).slice(11, 16) : '';
-
-  const side = (tag, v) => ({
-    type: 'stack', direction: 'row', alignItems: 'center', gap: 3,
-    children: [
-      { type: 'text', text: tag, font: { size: big ? 10 : 9, weight: 'medium' }, textColor: SUB, maxLines: 1 },
-      { type: 'text', text: fmt(v), font: { size: vs, weight: 'bold' }, textColor: TEXT, maxLines: 1, minScale: 0.7 },
-    ],
-  });
+  const tag = (t) => ({ type: 'text', text: t, font: { size: big ? 10 : 9, weight: 'medium' }, textColor: SUB, maxLines: 1 });
 
   return {
     type: 'stack', direction: 'row', alignItems: 'center', gap: big ? 8 : 4,
     children: [
-      { type: 'text', text: label.slice(0, 2) + flag, font: { size: big ? 13 : 10, weight: 'medium' }, textColor: SUB, maxLines: 1, minScale: 0.8 },
+      { type: 'text', text: label.slice(0, 2) + flag, font: { size: big ? 13 : 10, weight: 'medium' }, textColor: SUB, maxLines: 1, minScale: 0.8, flex: 1 },
       ...(at ? [{ type: 'text', text: at, font: { size: 10, weight: 'medium' }, textColor: SUB, maxLines: 1 }] : []),
-      { type: 'spacer' },
-      side('买', b.buy),
-      side('卖', b.sell),
       ...(big ? [{ type: 'text', text: `价差 ${one(spread)}`, font: { size: 9, weight: 'medium' }, textColor: SUB, maxLines: 1, minScale: 0.8 }] : []),
+      cell(wa, [tag('买'), num(fmt(b.buy), vs, 'bold', TEXT)]),
+      cell(wb, [tag('卖'), num(fmt(b.sell), vs, 'bold', TEXT)]),
     ],
   };
 }
 
 function spotLine(label, q, prefix, withPct, big) {
+  const [wa, wb] = big ? COLS.big : COLS.small;
   const n = Number(q && q.last);
   const ok = Number.isFinite(n) && n > 0;
   const flag = q && (q.stale ? (big ? '（旧）' : '旧') : q.closed ? (big ? ' 收盘' : '收盘') : '');
@@ -118,11 +123,10 @@ function spotLine(label, q, prefix, withPct, big) {
   return {
     type: 'stack', direction: 'row', alignItems: 'center', gap: big ? 8 : 4,
     children: [
-      { type: 'text', text: label + flag, font: { size: big ? 13 : 10, weight: 'medium' }, textColor: SUB, maxLines: 1, minScale: 0.8 },
+      { type: 'text', text: label + flag, font: { size: big ? 13 : 10, weight: 'medium' }, textColor: SUB, maxLines: 1, minScale: 0.8, flex: 1 },
       ...(at ? [{ type: 'text', text: at, font: { size: 10, weight: 'medium' }, textColor: SUB, maxLines: 1 }] : []),
-      { type: 'spacer' },
-      { type: 'text', text: ok ? prefix + money(n) : '--', font: { size: big ? 20 : 13, weight: 'bold' }, textColor: TEXT, maxLines: 1, minScale: 0.7 },
-      { type: 'text', text: ok ? (withPct ? String(q.pct || '') : '') : '', font: { size: big ? 11 : 9, weight: 'medium' }, textColor: pctColor(q), maxLines: 1, minScale: 0.8 },
+      cell(wa, [num(ok ? prefix + money(n) : '--', big ? 20 : 13, 'bold', TEXT)]),
+      cell(wb, [withPct && ok && q.pct ? num(String(q.pct), big ? 12 : 9, 'semibold', pctColor(q)) : { type: 'text', text: '' }]),
     ],
   };
 }

@@ -19,7 +19,7 @@ CCB_EASY_STORE_ID = "291000001"  # 易存金「标准建行金」
 # ip138 的「上海黄金现货」只每日 20:00 刷一次，且海外 IP 会被 302 到 dnsdblookup.com；
 # 汇通网这张表是同一个上金所 Au99.99 合约，盘中随时更新，所以拿它做 5 分钟源。
 SGE = "https://quote.fx678.com/exchange/sge"
-# 东财 122.XAU = 国际现货黄金（黄金/美元，XAUUSD）。只取时间和收盘价：字段带多了东财会 444。
+# 东财 122.XAU = 国际现货黄金（黄金/美元，XAUUSD）。字段只取要用的，带多了东财会 444。
 XAU = "https://push2his.eastmoney.com"
 XAU_KLINE = ("/api/qt/stock/kline/get?secid=122.XAU&klt=5&fqt=1&lmt=1&end=20500101"
              "&fields1=f1&fields2=f51,f53")
@@ -105,31 +105,33 @@ def sge():
 
 
 def xau():
+    # 每轮只发一个请求：东财按 IP 限流，连发两个第二个就 444。
+    # 分时接口一次给到现价 + preClose（昨收，算日涨跌），所以它在前，K 线兜底价格。
     err = None
-    row = None
-    for path in (XAU_KLINE, XAU_TREND):
+    price = bar = pre = None
+    for path in (XAU_TREND, XAU_KLINE):
         try:
             d = json.loads(get(XAU + path).decode("utf-8")).get("data") or {}
         except Exception as exc:
             err = f"{path.split('?')[0]}: {exc}"
             continue
         rows = d.get("klines") or d.get("trends") or []
-        if rows:
-            row = rows[-1]
-            break
-        err = f"{path.split('?')[0]}: rc without rows"
-    if not row:
-        raise RuntimeError(f"eastmoney XAU: {err}")
-    # 时间,收盘
-    bar, close = row.split(",")[:2]
-    last = float(close)
-    if last <= 0:
-        raise RuntimeError("eastmoney XAU: bad price")
-    # 只取价，不算涨跌：122.XAU 的 preKPrice 会随窗口滑动，不是昨收，算出来会误导。
-    # K 线时间是本根 bar 的结束时刻（会比抓取时刻超前最多 5 分钟），展示用抓取时间。
+        if not rows:
+            err = f"{path.split('?')[0]}: rc without rows"
+            continue
+        if price is None:  # K 线优先，分时兜底
+            bar, close = rows[-1].split(",")[:2]
+            price = float(close)
+        pre = pre or d.get("preClose")
+    if not price or price <= 0:
+        raise RuntimeError(f"eastmoney XAU: {err or 'bad price'}")
+    # K 线时间是本根 bar 的结束时刻（会比抓取时刻超前最多 5 分钟），展示用抓取时间
     now = datetime.datetime.now()
-    q = {"name": "国际现货黄金", "last": last, "at": now.strftime("%Y-%m-%d %H:%M")}
-    # 收盘 / 结算间隙接口照样返回最后一根 bar，半小时没新的就当没更新
+    q = {"name": "国际现货黄金", "last": price, "at": now.strftime("%Y-%m-%d %H:%M")}
+    if pre and float(pre) > 0:  # 分时接口的 preClose = 昨收，和沪金同口径的日涨跌
+        q["chg"] = round(price - float(pre), 2)
+        q["pct"] = f"{(price - float(pre)) / float(pre) * 100:+.2f}%"
+    # 休市时接口照样返回最后一根 bar，半小时没新的就当没更新
     if now - datetime.datetime.strptime(bar, "%Y-%m-%d %H:%M") > datetime.timedelta(minutes=30):
         q["stale"] = True
     return q
@@ -229,11 +231,14 @@ if __name__ == "__main__":
         bars = [f"{datetime.datetime.now():%Y-%m-%d %H:%M},3907.55"]
         real_get = get
         def fake_get(url, ipv4=False):
-            return json.dumps({"data": {"klines": bars}}).encode()
+            if "kline" in url:
+                return json.dumps({"data": {"klines": bars}}).encode()
+            return json.dumps({"data": {"preClose": 3900.0, "trends": bars}}).encode()
         get = fake_get
         try:
             q = xau()
             assert q["last"] == 3907.55 and q["at"] == f"{datetime.datetime.now():%Y-%m-%d %H:%M}", q
+            assert q["pct"] == "+0.19%", q
             assert "stale" not in q, q
         finally:
             get = real_get

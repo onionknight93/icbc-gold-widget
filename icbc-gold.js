@@ -1,6 +1,6 @@
 /******************************
 脚本名称: GoldBuySell
-Version : v2.9.0
+Version : v2.9.1
 平台: Egern
 风格: Robinhood（扁平、无卡片、大数字 + 小字）
 功能: 工行如意金 / 建行易存金 买入卖出价 + 价差；上海现货黄金；国际现货黄金（四行单列）
@@ -117,19 +117,13 @@ function stamp() {
   return `${t.getFullYear()}-${p(t.getMonth() + 1)}-${p(t.getDate())} ${p(t.getHours())}:${p(t.getMinutes())}`;
 }
 
-// 类目 + 小字（时间/状态/价差/单位）挤在一组，别各占一列
-function head(label, small, extra, big) {
-  const tiny = (t) => ({ type: 'text', text: t, font: { size: 9, weight: 'medium' }, textColor: SUB, maxLines: 1, minScale: 0.8 });
-  // 根容器会把每行按自身宽度居中，行宽不一致类目就对不齐；大号固定头部宽度让四行同宽
-  return {
-    type: 'stack', direction: 'row', alignItems: 'center', gap: 4,
-    ...(big ? { width: 118 } : { flex: 1 }),
-    children: [
-      { type: 'text', text: label, font: { size: big ? 15 : 11, weight: 'semibold' }, textColor: NAME, maxLines: 1, minScale: 0.8 },
-      ...(small ? [tiny(small)] : []),
-      ...(extra ? [tiny(extra)] : []),
-    ],
-  };
+// 类目必须是单个 flex 文本：嵌套 stack 的 flex 撑不满行宽，四行左缘就参差
+function labelText(text, big) {
+  return { type: 'text', text, font: { size: big ? 15 : 11, weight: 'semibold' }, textColor: NAME, maxLines: 1, minScale: 0.8, flex: 1 };
+}
+
+function tiny(t) {
+  return t ? [{ type: 'text', text: t, font: { size: 9, weight: 'medium' }, textColor: SUB, maxLines: 1, minScale: 0.8 }] : [];
 }
 
 function cell(w, nodes) {
@@ -154,9 +148,11 @@ function bankLine(b, label, big) {
   return {
     type: 'stack', direction: 'row', alignItems: 'center', gap: big ? 6 : 4,
     children: [
-      head(label.slice(0, 2), big ? slot : flag, big ? `价差 ${one(spread)}` : '', big),
+      labelText(label.slice(0, 2) + (big ? '' : flag), big),
+      ...(big ? [...tiny(slot), ...tiny(`价差 ${one(spread)}`)] : []),
       cell(wa, [tag('买'), num(fmt(b.buy), vs, 'semibold', TEXT)]),
       cell(wb, [tag('卖'), num(fmt(b.sell), vs, 'semibold', TEXT)]),
+      { type: 'spacer', length: big ? 10 : 0 },
     ],
   };
 }
@@ -173,9 +169,11 @@ function spotLine(label, q, prefix, withPct, big, anno = '') {
   return {
     type: 'stack', direction: 'row', alignItems: 'center', gap: big ? 6 : 4,
     children: [
-      head(label, big ? slot : flag, big ? anno : '', big),
+      labelText(label + (big ? '' : flag), big),
+      ...(big ? [...tiny(slot), ...tiny(anno)] : []),
       cell(wa, [num(ok ? prefix + money(n) : '--', vs, 'semibold', TEXT)]),
       cell(wb, [withPct && ok && q.pct ? pill(q, big) : { type: 'text', text: '' }]),
+      { type: 'spacer', length: big ? 10 : 0 },
     ],
   };
 }
@@ -187,14 +185,15 @@ function pill(q, big) {
   const flat = !Number.isFinite(chg) || chg === 0;
   const fg = flat ? SUB : up ? '#D70015' : '#008A3E';
   return {
-    type: 'stack', width: big ? 58 : 42, height: big ? 20 : 16, alignItems: 'center',
+    type: 'stack', width: big ? 58 : 42, height: big ? 20 : 16,
+    alignItems: 'center', justifyContent: 'center',
     borderRadius: big ? 6 : 4,
     backgroundColor: flat ? '#8E8E9312' : up ? '#FF3B3015' : '#00A65015',
     borderWidth: 1,
     borderColor: flat ? '#8E8E9340' : up ? '#FF3B3050' : '#00A65050',
     children: [{
       type: 'text', text: String((q && q.pct) || ''), font: { size: big ? 11 : 9, weight: 'semibold' },
-      textColor: fg, maxLines: 1, minScale: 0.6, textAlign: 'center', flex: 1,
+      textColor: fg, maxLines: 1, minScale: 0.6, textAlign: 'center',
     }],
   };
 }

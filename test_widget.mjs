@@ -38,6 +38,19 @@ for (const family of ['systemSmall', 'systemMedium', 'systemLarge', 'accessoryCi
 const inline = await widget(okCtx('accessoryInline'));
 assert(inline.type === 'widget' && /\d+\.\d\d/.test(JSON.stringify(inline)), 'inline price');
 
+// 国际金价优先手机直连东财快照（f43/f59/f170），失败才回落到 VPS 快照
+const liveCtx = (family) => ({
+  env: {},
+  widgetFamily: family,
+  http: { get: async (u) => ({ json: async () => (String(u).includes('push2.eastmoney.com')
+    ? { data: { f43: 400123, f59: 2, f170: 123 } }
+    : snap) }) },
+});
+for (const family of ['systemSmall', 'systemMedium']) {
+  const flat = JSON.stringify(await widget(liveCtx(family)));
+  assert(flat.includes('4,001.23') && flat.includes('+1.23%'), family + ' live xau');
+}
+
 // Failure path still yields a renderable widget.
 const failed = await widget(badCtx('systemSmall'));
 assert(failed.type === 'widget' && JSON.stringify(failed).includes('读取失败'), 'failure card');

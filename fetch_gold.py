@@ -104,7 +104,7 @@ def sge():
             "at": f"{day} {hh:02d}:{mm:02d}"}
 
 
-def xau():
+def xau(pre_hint=None):
     # 每轮只发一个请求：东财按 IP 限流，连发两个第二个就 444。
     # 分时接口一次给到现价 + preClose（昨收，算日涨跌），所以它在前，K 线兜底价格。
     err = None
@@ -122,13 +122,14 @@ def xau():
         if price is None:  # K 线优先，分时兜底
             bar, close = rows[-1].split(",")[:2]
             price = float(close)
-        pre = pre or d.get("preClose")
+        pre = pre or d.get("preClose") or pre_hint
     if not price or price <= 0:
         raise RuntimeError(f"eastmoney XAU: {err or 'bad price'}")
     # K 线时间是本根 bar 的结束时刻（会比抓取时刻超前最多 5 分钟），展示用抓取时间
     now = datetime.datetime.now()
     q = {"name": "国际现货黄金", "last": price, "at": now.strftime("%Y-%m-%d %H:%M")}
     if pre and float(pre) > 0:  # 分时接口的 preClose = 昨收，和沪金同口径的日涨跌
+        q["pre"] = float(pre)  # 缓存昨收：分时被限流、只拿到 K 线时还能算涨跌幅
         q["chg"] = round(price - float(pre), 2)
         q["pct"] = f"{(price - float(pre)) / float(pre) * 100:+.2f}%"
     # 休市时接口照样返回最后一根 bar，半小时没新的就当没更新
@@ -161,7 +162,10 @@ def main():
     prev = json.loads(OUT.read_text(encoding="utf-8")) if OUT.exists() else {}
     snap = {"updated": now.strftime("%Y-%m-%d %H:%M:%S")}
     fresh = False
-    for key, fn in (("icbc", icbc), ("ccb", ccb), ("sge", sge), ("xau", xau)):
+    # 昨收只在当天有效，跨天就别拿来当基准了
+    old_xau = prev.get("xau") or {}
+    pre_hint = old_xau.get("pre") if str(old_xau.get("at", "")).startswith(now.strftime("%Y-%m-%d")) else None
+    for key, fn in (("icbc", icbc), ("ccb", ccb), ("sge", sge), ("xau", lambda: xau(pre_hint))):
         if key not in active:
             if prev.get(key):
                 snap[key] = {**prev[key], "closed": True}

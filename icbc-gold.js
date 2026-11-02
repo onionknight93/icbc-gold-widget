@@ -1,6 +1,6 @@
 /******************************
 脚本名称: GoldBuySell
-Version : v2.8.2
+Version : v2.8.3
 平台: Egern
 风格: Robinhood（扁平、无卡片、大数字 + 小字）
 功能: 工行如意金 / 建行易存金 买入卖出价 + 价差；上海现货黄金；国际现货黄金（四行单列）
@@ -120,8 +120,10 @@ function stamp() {
 // 类目 + 小字（时间/状态/价差/单位）挤在一组，别各占一列
 function head(label, small, extra, big) {
   const tiny = (t) => ({ type: 'text', text: t, font: { size: 9, weight: 'medium' }, textColor: SUB, maxLines: 1, minScale: 0.8 });
+  // 根容器会把每行按自身宽度居中，行宽不一致类目就对不齐；大号固定头部宽度让四行同宽
   return {
-    type: 'stack', direction: 'row', alignItems: 'center', gap: 4, flex: 1,
+    type: 'stack', direction: 'row', alignItems: 'center', gap: 4,
+    ...(big ? { width: 118 } : { flex: 1 }),
     children: [
       { type: 'text', text: label, font: { size: big ? 15 : 11, weight: 'semibold' }, textColor: NAME, maxLines: 1, minScale: 0.8 },
       ...(small ? [tiny(small)] : []),

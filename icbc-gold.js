@@ -21,7 +21,7 @@ const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/6
 
 const BG = '#FFFFFF';
 const TEXT = '#000000';
-const SUB = '#8E8E93';
+const SUB = '#666666';
 const NAME = '#3C3C43';
 
 // 工行没有叫「易存金」的产品，对标建行易存金的是如意金积存

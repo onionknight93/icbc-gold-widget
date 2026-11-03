@@ -72,6 +72,20 @@ for (const family of ['systemSmall', 'systemMedium', 'systemLarge']) {
   }
 }
 
+// 绿涨红跌：胶囊颜色跟着符号走（曾经是红涨绿跌）
+{
+  const out = await widget(okCtx('systemMedium'));
+  const pills = [];
+  (function walk(n) {
+    if (!n || typeof n !== 'object') return;
+    if (n.borderWidth === 1 && n.children && n.children[0] && n.children[0].type === 'text') pills.push(n);
+    (n.children || []).forEach(walk);
+  })(out);
+  const bySign = pills.map((p) => ({ t: p.children[0].text, c: p.children[0].textColor }));
+  assert(bySign.some((p) => p.t.includes('+') && p.c === '#008A3E'), 'up pill green');
+  assert(bySign.some((p) => p.t.includes('-') && p.c === '#D70015'), 'down pill red');
+}
+
 // 国际现货行 survives a snapshot written before the source existed.
 for (const family of ['systemSmall', 'systemMedium']) {
   const flat = JSON.stringify(await widget(okCtx(family, { ...snap, xau: undefined })));

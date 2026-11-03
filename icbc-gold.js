@@ -226,29 +226,24 @@ function spotLine(label, q, prefix, withPct, big) {
   };
 }
 
-// 涨跌幅做成浅色底 + 描边的小胶囊（参考 Crypto_Widget 的写法）
+// 涨跌幅做成浅色底 + 描边的小胶囊（参考 Crypto_Widget 的写法）。绿涨红跌。
 function pill(q, big) {
   const chg = Number(q && q.chg);
   const up = chg > 0;
   const flat = !Number.isFinite(chg) || chg === 0;
-  const fg = flat ? SUB : up ? '#D70015' : '#008A3E';
+  const fg = flat ? SUB : up ? '#008A3E' : '#D70015';
   return {
     type: 'stack', width: big ? 54 : 42, height: big ? 14 : 16,
     alignItems: 'center', justifyContent: 'center',
     borderRadius: big ? 6 : 4,
-    backgroundColor: flat ? '#8E8E9312' : up ? '#FF3B3015' : '#00A65015',
+    backgroundColor: flat ? '#8E8E9312' : up ? '#00A65015' : '#FF3B3015',
     borderWidth: 1,
-    borderColor: flat ? '#8E8E9340' : up ? '#FF3B3050' : '#00A65050',
+    borderColor: flat ? '#8E8E9340' : up ? '#00A65050' : '#FF3B3050',
     children: [{
       type: 'text', text: String((q && q.pct) || ''), font: { size: big ? 9 : 9, weight: 'semibold' },
       textColor: fg, maxLines: 1, minScale: 0.6, textAlign: 'center',
     }],
   };
-}
-
-function pctColor(q) {
-  const chg = Number(q && q.chg);
-  return !Number.isFinite(chg) || chg === 0 ? SUB : chg > 0 ? '#FF3B30' : '#00A650';
 }
 
 function fmt(v) {

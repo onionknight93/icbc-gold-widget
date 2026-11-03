@@ -70,7 +70,7 @@ export default async function (ctx) {
         const b = d[k] || {};
         return { type: 'text', text: `${label.slice(0, 2)} 买${fmt(b.buy)} 卖${fmt(b.sell)}`, font: { size: 12, weight: 'bold' }, textColor: TEXT, maxLines: 1, minScale: 0.8 };
       }),
-      { type: 'text', text: `沪金 ${fmt(s.last)} ${s.pct || ''}`.trim(), font: { size: 11, weight: 'bold' }, textColor: TEXT, maxLines: 1, minScale: 0.8 },
+      { type: 'text', text: `沪金 ¥${money(s.last)} ${s.pct || ''}`.trim(), font: { size: 11, weight: 'bold' }, textColor: TEXT, maxLines: 1, minScale: 0.8 },
       { type: 'text', text: `国际 $${money(x.last)}`, font: { size: 11, weight: 'bold' }, textColor: TEXT, maxLines: 1, minScale: 0.8 },
     ] };
   }

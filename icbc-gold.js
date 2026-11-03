@@ -81,7 +81,7 @@ export default async function (ctx) {
     // 四个品种一行一个，右边两列固定宽度，四行数字才对得齐
     children: [
       ...BANKS.map(([k, label]) => bankLine(d[k] || {}, label, big)),
-      spotLine('沪金', d.sge, '', true, big, big ? '元/克' : ''),
+      spotLine('沪金', d.sge, '¥', true, big),
       spotLine('国际', xau, '$', true, big),
     ],
   };
@@ -183,7 +183,7 @@ function bankLine(b, label, big) {
   };
 }
 
-function spotLine(label, q, prefix, withPct, big, anno = '') {
+function spotLine(label, q, prefix, withPct, big) {
   const [wa, wb] = big ? COLS.big : COLS.small;
   const n = Number(q && q.last);
   const ok = Number.isFinite(n) && n > 0;
@@ -219,7 +219,6 @@ function spotLine(label, q, prefix, withPct, big, anno = '') {
         children: [
           sub([at, flag].filter(Boolean).join(' ')),
           { type: 'spacer' },
-          sub(anno),
           { type: 'spacer', length: 10 },
         ],
       },

@@ -62,7 +62,7 @@ for (const family of ['systemSmall', 'systemMedium', 'systemLarge']) {
   assert(flat.includes('工行') && flat.includes('建行'), family + ' banks');
   assert(flat.includes('买') && flat.includes('卖'), family + ' buy/sell');
   assert(!flat.includes('积存金'), family + ' no 积存金');
-  assert(flat.includes('833.00') && flat.includes('-2.55%'), family + ' sge price');
+  assert(flat.includes('¥833.00') && flat.includes('-2.55%') && !flat.includes('元/克'), family + ' sge ¥ prefix');
   assert(flat.includes('3,907.55') && flat.includes('国际') && flat.includes('+0.19%'), family + ' xau price+pct');
   assert(!/高|低/.test(flat), family + ' no sampled ranges');
   // 一列四行：小号省掉价差和时间，给数字腾宽度

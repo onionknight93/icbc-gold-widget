@@ -7,7 +7,6 @@ import datetime
 import json
 import os
 import pathlib
-import re
 import subprocess
 import sys
 import tempfile
@@ -16,9 +15,10 @@ from xml.etree import ElementTree as ET  # CCB feed is a fixed public XML, no DT
 ICBC = "https://mybank.icbc.com.cn/servlet/AsynGetDataServlet?tranCode=A00505"
 CCB = "https://www.ccb.com/cn/home/news/gjsycj01.xml"
 CCB_EASY_STORE_ID = "291000001"  # 易存金「标准建行金」
-# ip138 的「上海黄金现货」只每日 20:00 刷一次，且海外 IP 会被 302 到 dnsdblookup.com；
-# 汇通网这张表是同一个上金所 Au99.99 合约，盘中随时更新，所以拿它做 5 分钟源。
-SGE = "https://quote.fx678.com/exchange/sge"
+# 118.AU9999 = 上金所黄金9999（118.SHAU 是「上海金」，另一个合约）。和 XAU 同一个
+# push2his/trends2 接口：实测 10/10 成功、0.46s；它自家的 kline 对这个 secid 是空的，没有兜底。
+SGE = ("https://push2his.eastmoney.com/api/qt/stock/trends2/get?secid=118.AU9999&ndays=1"
+       "&fields1=f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13&fields2=f51,f53")
 # 东财 122.XAU = 国际现货黄金（黄金/美元，XAUUSD）。字段只取要用的，带多了东财会 444。
 XAU = "https://push2his.eastmoney.com"
 XAU_KLINE = ("/api/qt/stock/kline/get?secid=122.XAU&klt=5&fqt=1&lmt=1&end=20500101"
@@ -54,10 +54,10 @@ CNF.write_text(
 )
 
 
-def get(url, ipv4=False):
+def get(url):
     env = {**os.environ, "OPENSSL_CONF": str(CNF)}
     done = subprocess.run(
-        ["curl", "-sS", "-m", "20", "-A", "Mozilla/5.0", *(["-4"] if ipv4 else []), url],
+        ["curl", "-sS", "-m", "20", "-A", "Mozilla/5.0", url],
         capture_output=True, env=env, timeout=30,
     )
     if done.returncode != 0:
@@ -88,22 +88,23 @@ def ccb():
 
 
 def sge():
-    html = get(SGE, ipv4=True).decode("utf-8", "replace")  # 它家 AAAA 没有回程，-6 会挂 20s
-    row = re.search(r'<tr id="AU9999">(.*?)</tr>', html, re.S)
-    if not row:
-        raise RuntimeError("fx678: AU9999 row not found")
-    cells = [re.sub(r"<[^>]+>", "", c).strip()
-             for c in re.findall(r"<td[^>]*>(.*?)</td>", row.group(1), re.S)]
-    # 黄金9999 | 最新价 | 涨跌 | 涨跌幅 | 最高 | 最低 | 昨收 | 更新时间
-    last = float(cells[1])
+    d = json.loads(get(SGE).decode("utf-8")).get("data") or {}
+    rows = d.get("trends") or []
+    if not rows:
+        raise RuntimeError("eastmoney SGE: rc without trends")
+    bar, close = rows[-1].split(",")[:2]
+    last = float(close)
     if last <= 0:
-        raise RuntimeError("fx678: AU9999 price is 0 (闭市占位)")
-    now = datetime.datetime.now()
-    hh, mm = (int(x) for x in cells[7].split(":")[:2])
-    # 表里只有时分秒；比当前时刻晚就是昨天的（夜盘跨零点）
-    day = now.date() if (hh, mm) <= (now.hour, now.minute) else now.date() - datetime.timedelta(days=1)
-    return {"name": "上海现货黄金", "last": last, "chg": float(cells[2]), "pct": cells[3],
-            "at": f"{day} {hh:02d}:{mm:02d}"}
+        raise RuntimeError("eastmoney SGE: price is 0")
+    # 最后一根是当前这一分钟，可能比此刻超前几十秒；别把未来时间写进快照
+    at = min(datetime.datetime.strptime(bar, "%Y-%m-%d %H:%M"), datetime.datetime.now())
+    q = {"name": "上海现货黄金", "last": last, "at": at.strftime("%Y-%m-%d %H:%M")}
+    pre = d.get("preClose")  # 昨收：夜盘比的也是上一交易日收盘，和汇通同口径
+    if pre and float(pre) > 0:
+        q["pre"] = float(pre)
+        q["chg"] = round(last - float(pre), 2)
+        q["pct"] = f"{(last - float(pre)) / float(pre) * 100:+.2f}%"
+    return q
 
 
 def xau(pre_hint=None):
@@ -236,7 +237,7 @@ if __name__ == "__main__":
         # 东财 XAU K 线解析（不联网）：取最后一根的收盘价
         bars = [f"{datetime.datetime.now():%Y-%m-%d %H:%M},3907.55"]
         real_get = get
-        def fake_get(url, ipv4=False):
+        def fake_get(url):
             if "kline" in url:
                 return json.dumps({"data": {"klines": bars}}).encode()
             return json.dumps({"data": {"preClose": 3900.0, "trends": bars}}).encode()
@@ -250,13 +251,31 @@ if __name__ == "__main__":
             get = real_get
 
         # kline 被限流时退到分时接口，价格照旧
-        def fake_trends(url, ipv4=False):
+        def fake_trends(url):
             if "kline" in url:
                 raise RuntimeError("curl: (52) Empty reply from server")
             return json.dumps({"data": {"trends": bars}}).encode()
         get = fake_trends
         try:
             assert xau()["last"] == 3907.55
+        finally:
+            get = real_get
+
+        # 东财 SGE 分时解析（不联网）：最后一根的价格 + 昨收算涨跌幅
+        def fake_sge(url):
+            return json.dumps({"data": {"preClose": 836.08, "trends": [
+                "2026-11-03 02:29,849.00", "2026-11-03 09:01,847.00"]}}).encode()
+        get = fake_sge
+        try:
+            q = sge()
+            assert q["last"] == 847.00 and q["pct"] == "+1.31%", q
+            assert q["at"] == "2026-11-03 09:01", q
+        finally:
+            get = real_get
+        # 最后一根可能写着「当前这一分钟」，不能把未来时间写进快照
+        get = lambda url: json.dumps({"data": {"trends": ["2099-01-01 00:00,1.00"]}}).encode()
+        try:
+            assert sge()["at"] <= f"{datetime.datetime.now():%Y-%m-%d %H:%M}"
         finally:
             get = real_get
         print("selftest ok")

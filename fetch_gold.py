@@ -76,6 +76,16 @@ def fen(v):
     return round(int(v) / 100, 2)
 
 
+def stamp_quote(prev_q, quote, now):
+    """挂牌价没动就沿用上次调价时间：银行的价一天只调几次，别把抓取时刻当成报价时刻。"""
+    old = prev_q or {}
+    if old.get("at") and (old.get("buy"), old.get("sell")) == (quote.get("buy"), quote.get("sell")):
+        quote["at"] = old["at"]
+    else:
+        quote["at"] = now.strftime("%Y-%m-%d %H:%M")
+    return quote
+
+
 def icbc():
     r = json.loads(get(ICBC).decode("utf-8"))
     p = (r.get("pronoinfo") or [None])[0]
@@ -194,7 +204,10 @@ def main():
             continue
         try:
             quote = fn()
-            quote.setdefault("at", now.strftime("%Y-%m-%d %H:%M"))  # sge/xau 用行情自己的时间
+            if key in ("icbc", "ccb"):
+                stamp_quote(prev.get(key), quote, now)
+            else:
+                quote.setdefault("at", now.strftime("%Y-%m-%d %H:%M"))  # sge/xau 用行情自己的时间
             snap[key] = quote
             fresh = fresh or not quote.get("stale")
         except Exception as exc:
@@ -297,6 +310,12 @@ if __name__ == "__main__":
             assert sge()["at"] <= f"{datetime.datetime.now():%Y-%m-%d %H:%M}"
         finally:
             get = real_get
+        # 挂牌价不变时沿用上次调价时间
+        n = datetime.datetime(2026, 11, 13, 14, 5)
+        same = {"buy": 856.79, "sell": 836.41}
+        assert stamp_quote({"buy": 856.79, "sell": 836.41, "at": "2026-11-13 09:30"}, dict(same), n)["at"] == "2026-11-13 09:30"
+        assert stamp_quote({"buy": 855.5, "sell": 835.13, "at": "2026-11-13 09:30"}, dict(same), n)["at"] == "2026-11-13 14:05"
+        assert stamp_quote(None, dict(same), n)["at"] == "2026-11-13 14:05"
         print("selftest ok")
     else:
         main()

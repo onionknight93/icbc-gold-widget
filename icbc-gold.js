@@ -15,8 +15,10 @@ const REPO = 'onionknight93/icbc-gold-widget';
 const DATA = `https://raw.githubusercontent.com/${REPO}/data/gold.json`;
 const PAGE =
   'https://mybank.icbc.com.cn/icbc/newperbank/perbank3/gold/goldaccrual_query_out.jsp';
-// 东财快照：f43 最新价、f59 小数位、f170 涨跌幅(0.01%)。手机上直连，不占 VPS 那个被限流的 IP。
-const XAU_URL = 'https://push2.eastmoney.com/api/qt/stock/get?secid=122.XAU&fields=f43,f59,f170';
+// 东财快照：f43 最新价、f59 小数位、f170 涨跌幅(0.01%)。手机上直连，VPS 的 IP 被限流也不影响。
+const spotUrl = (secid) => `https://push2.eastmoney.com/api/qt/stock/get?secid=${secid}&fields=f43,f59,f170`;
+const XAU_URL = spotUrl('122.XAU');
+const SGE_URL = spotUrl('118.AU9999');
 const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1';
 
 const BG = '#FFFFFF';
@@ -47,7 +49,9 @@ export default async function (ctx) {
 
   const big = ctx.widgetFamily !== 'systemSmall';
   const pad = big ? 10 : 12;
-  const xau = (await liveXau(ctx)) || d.xau || {};
+  const [sgeLive, xauLive] = await Promise.all([liveSpot(ctx, SGE_URL), liveSpot(ctx, XAU_URL)]);
+  const sge = sgeLive || d.sge || {};
+  const xau = xauLive || d.xau || {};
 
   if (ctx.widgetFamily === 'accessoryInline') {
     const b = d.icbc || {};
@@ -63,7 +67,7 @@ export default async function (ctx) {
     ] };
   }
   if (ctx.widgetFamily === 'accessoryRectangular') {
-    const s = d.sge || {};
+    const s = sge;
     const x = d.xau || {};
     return { type: 'widget', refreshAfter: refreshAfter(), children: [
       ...BANKS.map(([k, label]) => {
@@ -81,7 +85,7 @@ export default async function (ctx) {
     // 四个品种一行一个，右边两列固定宽度，四行数字才对得齐
     children: [
       ...BANKS.map(([k, label]) => bankLine(d[k] || {}, label, big)),
-      spotLine('沪金', d.sge, '¥', true, big),
+      spotLine('沪金', sge, '¥', true, big),
       spotLine('国际', xau, '$', true, big),
     ],
   };
@@ -90,9 +94,9 @@ export default async function (ctx) {
 // 数字列定宽：小号 56/44，中/大号 94/76
 const COLS = { small: [56, 44], big: [94, 76] };
 
-async function liveXau(ctx) {
+async function liveSpot(ctx, url) {
   try {
-    const r = await ctx.http.get(XAU_URL, {
+    const r = await ctx.http.get(url, {
       timeout: 5000,
       headers: { 'User-Agent': UA, Accept: '*/*', Referer: 'https://quote.eastmoney.com/' },
     });

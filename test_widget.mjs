@@ -38,17 +38,21 @@ for (const family of ['systemSmall', 'systemMedium', 'systemLarge', 'accessoryCi
 const inline = await widget(okCtx('accessoryInline'));
 assert(inline.type === 'widget' && /\d+\.\d\d/.test(JSON.stringify(inline)), 'inline price');
 
-// 国际金价优先手机直连东财快照（f43/f59/f170），失败才回落到 VPS 快照
+// 沪金/国际都优先手机直连东财快照（f43/f59/f170），失败才回落到 VPS 快照
 const liveCtx = (family) => ({
   env: {},
   widgetFamily: family,
-  http: { get: async (u) => ({ json: async () => (String(u).includes('push2.eastmoney.com')
-    ? { data: { f43: 400123, f59: 2, f170: 123 } }
-    : snap) }) },
+  http: { get: async (u) => ({ json: async () => {
+    const s = String(u);
+    if (s.includes('118.AU9999')) return { data: { f43: 83699, f59: 2, f170: -88 } };
+    if (s.includes('122.XAU')) return { data: { f43: 400123, f59: 2, f170: 123 } };
+    return snap;
+  } }) },
 });
 for (const family of ['systemSmall', 'systemMedium']) {
   const flat = JSON.stringify(await widget(liveCtx(family)));
   assert(flat.includes('4,001.23') && flat.includes('+1.23%'), family + ' live xau');
+  assert(flat.includes('836.99') && flat.includes('-0.88%'), family + ' live sge');
 }
 
 // Failure path still yields a renderable widget.

@@ -10,6 +10,7 @@ import pathlib
 import subprocess
 import sys
 import tempfile
+import time
 from xml.etree import ElementTree as ET  # CCB feed is a fixed public XML, no DTD
 
 ICBC = "https://mybank.icbc.com.cn/servlet/AsynGetDataServlet?tranCode=A00505"
@@ -54,15 +55,21 @@ CNF.write_text(
 )
 
 
-def get(url):
+def get(url, tries=3):
     env = {**os.environ, "OPENSSL_CONF": str(CNF)}
-    done = subprocess.run(
-        ["curl", "-sS", "-m", "20", "-A", "Mozilla/5.0", url],
-        capture_output=True, env=env, timeout=30,
-    )
-    if done.returncode != 0:
-        raise RuntimeError(done.stderr.decode()[:200])
-    return done.stdout
+    err = "no attempt"
+    for i in range(tries):
+        done = subprocess.run(
+            ["curl", "-sS", "-m", "20", "-A", "Mozilla/5.0", url],
+            capture_output=True, env=env, timeout=30,
+        )
+        if done.returncode == 0 and done.stdout:
+            return done.stdout
+        err = done.stderr.decode()[:200] or f"empty body (curl rc={done.returncode})"
+        if i + 1 < tries:
+            time.sleep(2)
+    # 东财隔三差五回 empty reply（curl 52），单发一次失败就会把整段行情丢掉
+    raise RuntimeError(f"{err} (after {tries} tries)")
 
 
 def fen(v):
@@ -170,8 +177,20 @@ def main():
     pre_hint = old_xau.get("pre") if str(old_xau.get("at", "")).startswith(now.strftime("%Y-%m-%d")) else None
     for key, fn in (("icbc", icbc), ("ccb", ccb), ("sge", sge), ("xau", lambda: xau(pre_hint))):
         if key not in active:
-            if prev.get(key):
-                snap[key] = {**prev[key], "closed": True}
+            old = prev.get(key)
+            # 收盘后补抓一次：*/5 的最后一跑正好撞上抓取失败时，收盘价会永远停在半路
+            if old and not old.get("closed"):
+                try:
+                    quote = fn()
+                    quote.setdefault("at", now.strftime("%Y-%m-%d %H:%M"))
+                    quote["closed"] = True
+                    snap[key] = quote
+                    fresh = fresh or not quote.get("stale")
+                    continue
+                except Exception as exc:
+                    print(f"warn: {now:%F %T} {key}: close refetch: {exc}", file=sys.stderr)
+            if old:
+                snap[key] = {**old, "closed": True}
             continue
         try:
             quote = fn()
@@ -179,7 +198,7 @@ def main():
             snap[key] = quote
             fresh = fresh or not quote.get("stale")
         except Exception as exc:
-            print(f"warn: {key}: {exc}", file=sys.stderr)
+            print(f"warn: {now:%F %T} {key}: {exc}", file=sys.stderr)
             if prev.get(key):
                 # ponytail: no derived history on the VPS — carry the last quote only
                 snap[key] = {**prev[key], "stale": True}

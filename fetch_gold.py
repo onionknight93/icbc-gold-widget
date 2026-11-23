@@ -188,7 +188,7 @@ def main():
     for key, fn in (("icbc", icbc), ("ccb", ccb), ("sge", sge), ("xau", lambda: xau(pre_hint))):
         if key not in active:
             old = prev.get(key)
-            # 收盘后补抓一次：*/5 的最后一跑正好撞上抓取失败时，收盘价会永远停在半路
+            # 收盘后补抓一次：抓取失败时收盘价会永远停在半路，所以每个收盘窗口至少补跑一次
             if old and not old.get("closed"):
                 try:
                     quote = fn()

@@ -4,7 +4,7 @@ Version : v2.10.0
 平台: Egern
 风格: Robinhood（扁平、无卡片、大数字 + 小字）
 功能: 工行如意金 / 建行易存金 买入卖出价 + 价差；上海现货黄金；国际现货黄金（四行单列）
-数据: VPS 交易时段每 5 分钟抓一次 → onionknight93/icbc-gold-widget/data/gold.json
+数据: VPS 交易时段开盘时段每 2 小时抓一次 → onionknight93/icbc-gold-widget/data/gold.json
 说明: 两家银行都不支持 RFC 5746，iOS 无法直连，所以读快照
       不存任何高低/历史，快照只有当前买卖价
       工行 09:10-22:30（自然日）、建行 09:00-16:30（周一至周五）

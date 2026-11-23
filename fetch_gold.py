@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fetch ICBC 如意金 / CCB 易存金, Shanghai spot gold and international spot gold (XAU).
+"""Fetch ICBC 如意金, Shanghai spot gold and international spot gold (XAU).
 
 Run from cron. Writes atomically; on failure keeps the previous value per source.
 """
@@ -11,11 +11,8 @@ import subprocess
 import sys
 import tempfile
 import time
-from xml.etree import ElementTree as ET  # CCB feed is a fixed public XML, no DTD
 
 ICBC = "https://mybank.icbc.com.cn/servlet/AsynGetDataServlet?tranCode=A00505"
-CCB = "https://www.ccb.com/cn/home/news/gjsycj01.xml"
-CCB_EASY_STORE_ID = "291000001"  # 易存金「标准建行金」
 # 118.AU9999 = 上金所黄金9999（118.SHAU 是「上海金」，另一个合约）。和 XAU 同一个
 # push2his/trends2 接口：实测 10/10 成功、0.46s；它自家的 kline 对这个 secid 是空的，没有兜底。
 SGE = ("https://push2his.eastmoney.com/api/qt/stock/trends2/get?secid=118.AU9999&ndays=1"
@@ -32,7 +29,6 @@ XAU_TREND = ("/api/qt/stock/trends2/get?secid=122.XAU&ndays=1"
 # 交易时段（含收盘那一分钟）+ 交易天数；end < start 表示跨零点，days 算起始日
 WINDOWS = {
     "icbc": ((9 * 60 + 10, 22 * 60 + 30, 7),),
-    "ccb": ((9 * 60, 16 * 60 + 30, 5),),
     # 上金所：09:00-11:30、13:30-15:30、20:00-次日 02:30（周一夜盘起，周五夜盘到周六凌晨）
     "sge": ((9 * 60, 11 * 60 + 30, 5), (13 * 60 + 30, 15 * 60 + 30, 5), (20 * 60, 2 * 60 + 30, 5)),
     # 伦敦金：周一 07:00 开到周六 05:00（跨零点，days 算起始日）
@@ -92,16 +88,6 @@ def icbc():
     if not p:
         raise RuntimeError("A00505: no price row")
     return {"name": "工行如意金", "buy": fen(p["buyprice"]), "sell": fen(p["sellprice"])}
-
-
-def ccb():
-    for row in ET.fromstring(get(CCB)).findall("ReferencePriceSettlement"):
-        if row.findtext("PM_PD_ID") == CCB_EASY_STORE_ID:
-            # 当日买入价 = Br_Sell_Prc; 分行回购价 = Br_Bybk_Prc
-            return {"name": "建行易存金",
-                    "buy": float(row.findtext("Br_Sell_Prc")),
-                    "sell": float(row.findtext("Br_Bybk_Prc"))}
-    raise RuntimeError("gjsycj01: 易存金 row not found")
 
 
 def sge():
@@ -185,7 +171,7 @@ def main():
     # 昨收只在当天有效，跨天就别拿来当基准了
     old_xau = prev.get("xau") or {}
     pre_hint = old_xau.get("pre") if str(old_xau.get("at", "")).startswith(now.strftime("%Y-%m-%d")) else None
-    for key, fn in (("icbc", icbc), ("ccb", ccb), ("sge", sge), ("xau", lambda: xau(pre_hint))):
+    for key, fn in (("icbc", icbc), ("sge", sge), ("xau", lambda: xau(pre_hint))):
         if key not in active:
             old = prev.get(key)
             # 收盘后补抓一次：抓取失败时收盘价会永远停在半路，所以每个收盘窗口至少补跑一次
@@ -204,7 +190,7 @@ def main():
             continue
         try:
             quote = fn()
-            if key in ("icbc", "ccb"):
+            if key == "icbc":
                 stamp_quote(prev.get(key), quote, now)
             else:
                 quote.setdefault("at", now.strftime("%Y-%m-%d %H:%M"))  # sge/xau 用行情自己的时间
@@ -228,16 +214,11 @@ def main():
 if __name__ == "__main__":
     if "--selftest" in sys.argv:  # ponytail: one check for the trading windows
         at = lambda d, h, m: datetime.datetime(2026, 10, d, h, m)
-        assert in_window("ccb", at(23, 8, 59)) is False
-        assert in_window("ccb", at(23, 9, 0)) is True
-        assert in_window("ccb", at(23, 16, 30)) is True
-        assert in_window("ccb", at(23, 16, 31)) is False
         assert in_window("icbc", at(23, 9, 9)) is False
         assert in_window("icbc", at(23, 9, 10)) is True
         assert in_window("icbc", at(23, 22, 30)) is True
         assert in_window("icbc", at(23, 22, 31)) is False
         assert in_window("icbc", at(24, 12, 0)) is True   # Saturday: 自然日
-        assert in_window("ccb", at(24, 12, 0)) is False   # Saturday: 工作日 only
         # 上金所 Au99.99 三段盘（2026-10-23 是周五）
         assert in_window("sge", at(26, 8, 59)) is False
         assert in_window("sge", at(26, 9, 0)) is True

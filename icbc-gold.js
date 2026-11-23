@@ -3,11 +3,11 @@
 Version : v2.10.0
 平台: Egern
 风格: Robinhood（扁平、无卡片、大数字 + 小字）
-功能: 工行如意金 / 建行易存金 买入卖出价 + 价差；上海现货黄金；国际现货黄金（四行单列）
+功能: 工行如意金 买入卖出价 + 价差；上海现货黄金；国际现货黄金（三行单列）
 数据: VPS 交易时段开盘时段每 2 小时抓一次 → onionknight93/icbc-gold-widget/data/gold.json
 说明: 两家银行都不支持 RFC 5746，iOS 无法直连，所以读快照
       不存任何高低/历史，快照只有当前买卖价
-      工行 09:10-22:30（自然日）、建行 09:00-16:30（周一至周五）
+      工行 09:10-22:30（自然日）
       上海现货黄金 09:00-11:30 / 13:30-15:30 / 20:00-次日 02:30（周一至周五）
       国际现货黄金 周一 07:00 - 周六 05:00（东财 122.XAU，美元/盎司）
 **********************************/
@@ -26,10 +26,8 @@ const TEXT = '#000000';
 const SUB = '#666666';
 const NAME = '#3C3C43';
 
-// 工行没有叫「易存金」的产品，对标建行易存金的是如意金积存
 const BANKS = [
-  ['icbc', '工行如意金'],
-  ['ccb', '建行易存金'],
+  ['icbc', '工行如意金积存'],
 ];
 
 export default async function (ctx) {
@@ -82,7 +80,7 @@ export default async function (ctx) {
   return {
     type: 'widget', url: PAGE, padding: pad, gap: big ? 3 : 6, refreshAfter: refreshAfter(),
     backgroundColor: BG,
-    // 四个品种一行一个，右边两列固定宽度，四行数字才对得齐
+    // 三个品种一行一个，右边两列固定宽度，三行数字才对得齐
     children: [
       ...BANKS.map(([k, label]) => bankLine(d[k] || {}, label, big)),
       spotLine('沪金', sge, '¥', true, big),
